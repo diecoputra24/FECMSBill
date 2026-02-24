@@ -1,68 +1,204 @@
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700;800&display=swap');
+@import 'leaflet/dist/leaflet.css';
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@layer base {
+  body {
+    font-family: 'Open Sans', sans-serif;
+  }
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-@media (prefers-color-scheme: light) {
+@layer base {
   :root {
-    color: #213547;
-    background-color: #ffffff;
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
+
+    --radius: 0.5rem;
+
+    /* Theme colors requested */
+    --theme-blue: 221.2 83.2% 53.3%;
+    --theme-purple: 262.1 83.3% 57.8%;
+    --theme-pink: 330.4 81.2% 60.4%;
+    --theme-green: 142.1 76.2% 36.3%;
+    --theme-gray: 240 5.9% 64.9%;
+    --theme-yellow: 47.9 95.8% 53.1%;
   }
-  a:hover {
-    color: #747bff;
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
   }
-  button {
-    background-color: #f9f9f9;
+
+  body {
+    @apply bg-background text-foreground;
   }
+}
+
+@keyframes indeterminate-1 {
+  0% {
+    left: -35%;
+    right: 100%;
+  }
+
+  60% {
+    left: 100%;
+    right: -90%;
+  }
+
+  100% {
+    left: 100%;
+    right: -90%;
+  }
+}
+
+@keyframes indeterminate-2 {
+  0% {
+    left: -200%;
+    right: 100%;
+  }
+
+  60% {
+    left: 107%;
+    right: -8%;
+  }
+
+  100% {
+    left: 107%;
+    right: -8%;
+  }
+}
+
+@keyframes progress {
+  0% {
+    transform: scaleX(0);
+  }
+
+  100% {
+    transform: scaleX(1);
+  }
+}
+
+.animate-progress {
+  animation: progress 2s ease-in-out infinite;
+}
+
+.animate-progress-fast {
+  animation: progress 1s ease-in-out infinite;
+}
+
+.animate-progress-material-1 {
+  animation: indeterminate-1 2.1s cubic-bezier(0.65, 0.815, 0.735, 0.395) infinite;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  will-change: left, right;
+}
+
+.animate-progress-material-2 {
+  animation: indeterminate-2 2.1s cubic-bezier(0.165, 0.84, 0.44, 1) infinite;
+  animation-delay: 1.15s;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  will-change: left, right;
+}
+
+/* Specific table scrollbar class */
+.table-thin-scroll::-webkit-scrollbar {
+  display: block;
+  height: 1px !important;
+  /* Horizontal scrollbar height */
+  width: 1px !important;
+  /* Vertical scrollbar width */
+}
+
+.table-thin-scroll::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+.table-thin-scroll::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--primary)) !important;
+  border-radius: 4px !important;
+}
+
+.table-thin-scroll::-webkit-scrollbar-button {
+  display: none !important;
+}
+
+/* Ultra thin scrollbar using border trick for Windows compatibility */
+.thin-scrollbar::-webkit-scrollbar {
+  height: 6px !important;
+  /* Total click area height */
+  width: 6px !important;
+}
+
+.thin-scrollbar::-webkit-scrollbar-track {
+  background-color: transparent !important;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #3b82f6 !important;
+  /* Solid Blue */
+  border-radius: 10px !important;
+  border: 2px solid transparent !important;
+  /* This eats up space */
+  background-clip: content-box !important;
+  /* Only paints the inner 2px */
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #2563eb !important;
+  /* Darker blue on hover */
+  border: 1px solid transparent !important;
+  /* Make it slightly thicker on hover (4px) */
+}
+
+.thin-scrollbar::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Firefox */
+.thin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #3b82f6 transparent;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
