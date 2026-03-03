@@ -7,7 +7,7 @@ import { useCustomerChangeStore } from "@/store/customerChangeStore";
 import { useCustomerChangeRequestStore } from "@/store/customerChangeRequestStore";
 import { CustomSelect } from "@/components/ui/custom-select";
 import { CustomButton } from "@/components/ui/custom-button";
-import { CustomSwitch } from "@/components/ui/custom-input";
+import { CustomSwitch, CustomTextArea } from "@/components/ui/custom-input";
 import { CustomTable } from "@/components/ui/custom-table";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -20,11 +20,14 @@ import {
     User,
     MapPin,
     Phone,
-    FileText
+    FileText,
+    ArrowRight,
+    Send
 } from "lucide-react";
 import { ModalMessage } from "@/components/ui/modal-message";
 import { ModalLoading } from "@/components/ui/modal-loading";
 import { ModalConfirm } from "@/components/ui/modal-confirm";
+import { ModalDetail } from "@/components/ui/modal-detail";
 import { useSearchParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { MapPicker } from "@/components/ui/map-picker";
@@ -76,6 +79,26 @@ const FormField = ({ label, icon: Icon, children }: { label: string; icon?: Reac
     </div>
 );
 
+// New Component for comparison in modal
+const ChangeItem = ({ label, oldValue, newValue, icon: Icon }: { label: string; oldValue: string; newValue: string; icon?: React.ComponentType<{ size?: number; className?: string }> }) => {
+    const hasChange = oldValue !== newValue;
+    if (!hasChange) return null;
+
+    return (
+        <div className="flex items-start gap-3 py-2 border-b border-slate-50 last:border-0 text-left">
+            {Icon && <Icon size={14} className="text-slate-400 mt-0.5 flex-shrink-0" />}
+            <div className="flex-1 min-w-0">
+                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">{label}</p>
+                <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs text-red-500 line-through truncate max-w-[150px]">{oldValue || "-"}</span>
+                    <ArrowRight size={12} className="text-slate-300 flex-shrink-0" />
+                    <span className="text-xs text-green-600 font-bold truncate max-w-[150px]">{newValue || "-"}</span>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const CustomerChangePage: React.FC = () => {
     const [searchParams] = useSearchParams();
     const customerIdFromQuery = searchParams.get("id");
@@ -101,11 +124,13 @@ const CustomerChangePage: React.FC = () => {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isAddressSyncing, setIsAddressSyncing] = useState(false);
     const [autoAddress, setAutoAddress] = useState(false);
+    const [requestNote, setRequestNote] = useState("");
 
     // Modal states
     const [showMessage, setShowMessage] = useState({ show: false, title: "", message: "", type: "success" as any });
     const [showLoading, setShowLoading] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
+    const [showPreviewModal, setShowPreviewModal] = useState(false);
 
     const searchOptions = [
         { value: "idPelanggan", label: "IdPel" },
@@ -118,13 +143,6 @@ const CustomerChangePage: React.FC = () => {
         fetchBranches();
         fetchAreas();
         fetchOdps();
-
-        // Cleanup: reset data when component unmounts
-        return () => {
-            setSelectedCustomer(null);
-            resetFormData();
-            setFilterValues({ branchId: '', searchType: 'idPelanggan', searchValue: '' });
-        };
     }, []);
 
     // Handle customer ID from query params
@@ -259,7 +277,7 @@ const CustomerChangePage: React.FC = () => {
                 newOdpPortId: formData.odpPortId ? parseInt(formData.odpPortId) : undefined,
                 newLatitude: formData.latitude ? parseFloat(formData.latitude) : undefined,
                 newLongitude: formData.longitude ? parseFloat(formData.longitude) : undefined,
-                requestedBy: "Admin", // TODO: Get from auth context
+                requestNote: requestNote
             });
 
             setShowMessage({
@@ -268,6 +286,8 @@ const CustomerChangePage: React.FC = () => {
                 message: `Request perubahan data untuk pelanggan ${selectedCustomer?.namaPelanggan} berhasil dikirim dan menunggu persetujuan.`,
                 type: "success"
             });
+            setShowPreviewModal(false);
+            setRequestNote("");
         } catch (error: any) {
             const errorMsg = error.response?.data?.message || error.message;
             setShowMessage({
@@ -280,6 +300,16 @@ const CustomerChangePage: React.FC = () => {
             setLoading(false);
             setShowLoading(false);
         }
+    };
+
+    const getAreaName = (areaId: string | number) => {
+        if (!areaId) return "-";
+        return areas.find(a => a.id.toString() === areaId.toString())?.namaArea || "-";
+    };
+
+    const getOdpName = (odpId: string | number) => {
+        if (!odpId) return "-";
+        return odps.find(o => o.id.toString() === odpId.toString())?.namaOdp || "-";
     };
 
     return (
@@ -592,7 +622,7 @@ const CustomerChangePage: React.FC = () => {
                                             )}
                                         </div>
                                         <CustomButton
-                                            onClick={() => setShowConfirm(true)}
+                                            onClick={() => setShowPreviewModal(true)}
                                             disabled={!hasChanges || loading}
                                             className="h-11 px-6 rounded-lg font-bold shadow-md"
                                         >
@@ -608,6 +638,68 @@ const CustomerChangePage: React.FC = () => {
             ) : (
                 <div className="min-h-[400px]" />
             )}
+
+            {/* Preview and Note Modal */}
+            <ModalDetail
+                isOpen={showPreviewModal}
+                onClose={() => setShowPreviewModal(false)}
+                title="Review Perubahan Data"
+                maxWidth="md"
+                showFooter={false}
+            >
+                <div className="space-y-6 py-2">
+                    {selectedCustomer && (
+                        <>
+                            <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">ID PELANGGAN</span>
+                                        <span className="text-sm font-bold text-primary">{selectedCustomer.idPelanggan}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">NAMA PELANGGAN</span>
+                                        <span className="text-sm font-bold text-slate-800">{selectedCustomer.namaPelanggan}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="space-y-1 max-h-[300px] overflow-y-auto pr-2">
+                                <ChangeItem label="Nama Pelanggan" icon={User} oldValue={selectedCustomer.namaPelanggan} newValue={formData.namaPelanggan} />
+                                <ChangeItem label="Alamat" icon={MapPin} oldValue={selectedCustomer.alamatPelanggan} newValue={formData.alamatPelanggan} />
+                                <ChangeItem label="Telepon" icon={Phone} oldValue={selectedCustomer.teleponPelanggan} newValue={formData.teleponPelanggan} />
+                                <ChangeItem label="NIK / Identitas" icon={FileText} oldValue={selectedCustomer.identitasPelanggan} newValue={formData.identitasPelanggan} />
+                                <ChangeItem label="Area" oldValue={getAreaName(selectedCustomer.areaId)} newValue={getAreaName(formData.areaId)} />
+                                <ChangeItem label="ODP" oldValue={getOdpName(selectedCustomer.odpId)} newValue={getOdpName(formData.odpId)} />
+                                <ChangeItem label="Port ODP" oldValue={selectedCustomer.odpPortId?.toString() || "-"} newValue={formData.odpPortId?.toString() || "-"} />
+                                <ChangeItem label="Latitude" oldValue={selectedCustomer.latitude?.toString() || "-"} newValue={formData.latitude?.toString() || "-"} />
+                                <ChangeItem label="Longitude" oldValue={selectedCustomer.longitude?.toString() || "-"} newValue={formData.longitude?.toString() || "-"} />
+                            </div>
+
+                            <div className="pt-4 border-t border-slate-100 space-y-3">
+                                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Catatan Pemohon:</label>
+                                <CustomTextArea
+                                    placeholder="Berikan alasan atau keterangan perubahan data ini..."
+                                    value={requestNote}
+                                    onChange={(e) => setRequestNote(e.target.value)}
+                                    rows={3}
+                                />
+                            </div>
+
+                            <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+                                <CustomButton variant="ghost" onClick={() => setShowPreviewModal(false)}>Batal</CustomButton>
+                                <CustomButton
+                                    variant="primary"
+                                    onClick={() => setShowConfirm(true)}
+                                    disabled={!requestNote.trim()}
+                                >
+                                    <Send size={14} className="mr-2" />
+                                    Kirim Request
+                                </CustomButton>
+                            </div>
+                        </>
+                    )}
+                </div>
+            </ModalDetail>
 
             <ModalLoading isOpen={showLoading} message="Sedang mengirim request perubahan data..." />
 

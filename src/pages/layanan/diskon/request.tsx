@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useCustomerStore } from "@/store/customerStore";
 import { useBranchStore } from "@/store/branchStore";
-import { useCustomerStatusStore } from "@/store/customerStatusStore";
-import { useCustomerStatusRequestStore } from "@/store/customerStatusRequestStore";
+import { useAreaStore } from "@/store/areaStore";
+import { useDiscountRequestStore } from "@/store/discountRequestStore";
 import { CustomSelect } from "@/components/ui/custom-select";
 import { CustomButton } from "@/components/ui/custom-button";
+import { CustomTextArea } from "@/components/ui/custom-input";
 import { CustomTable } from "@/components/ui/custom-table";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -13,20 +14,16 @@ import {
     ChevronUp,
     RefreshCw,
     Loader2,
-    Send,
-    UserMinus,
-    UserX,
-    UserCheck,
-    AlertTriangle,
-    FileText
+    Save,
+    Send
 } from "lucide-react";
 import { ModalMessage } from "@/components/ui/modal-message";
 import { ModalLoading } from "@/components/ui/modal-loading";
 import { ModalConfirm } from "@/components/ui/modal-confirm";
+import { ModalDetail } from "@/components/ui/modal-detail";
 import { useSearchParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
-// Helper Components
 const InfoCard = ({ title, children, className, status, collapsible, isCollapsed, onToggle }: { title: string; children: React.ReactNode; className?: string; status?: React.ReactNode; collapsible?: boolean; isCollapsed?: boolean; onToggle?: () => void }) => (
     <div className={cn("rounded-lg overflow-hidden flex flex-col bg-white border border-slate-100 transition-all duration-300", className)}>
         <div className="bg-slate-50 px-5 py-1.5 border-b border-slate-100 flex justify-between items-center">
@@ -73,27 +70,20 @@ const FormField = ({ label, icon: Icon, children }: { label: string; icon?: Reac
     </div>
 );
 
-const CustomerStatusPage: React.FC = () => {
+const DiscountRequestPage: React.FC = () => {
     const [searchParams] = useSearchParams();
     const customerIdFromQuery = searchParams.get("id");
-    const actionType = searchParams.get("action"); // 'nonaktif' or 'berhenti'
 
     const { customers, fetchCustomers } = useCustomerStore();
     const { branches, fetchBranches } = useBranchStore();
-    const { createRequest } = useCustomerStatusRequestStore();
+    const { areas, fetchAreas } = useAreaStore();
 
-    const {
-        filterValues,
-        selectedCustomer,
-        selectedAction,
-        reason,
-        isInfoCollapsed,
-        setFilterValues,
-        setSelectedCustomer,
-        setSelectedAction,
-        setReason,
-        setIsInfoCollapsed
-    } = useCustomerStatusStore();
+    const [filterValues, setFilterValues] = useState({ searchType: "idPelanggan", searchValue: "", branchId: "all" });
+    const [selectedCustomer, setSelectedCustomer] = useState<typeof customers[0] | null>(null);
+    const [isInfoCollapsed, setIsInfoCollapsed] = useState(false);
+
+    const [newDiscount, setNewDiscount] = useState<number>(0);
+    const [requestNote, setRequestNote] = useState("");
 
     const [loading, setLoading] = useState(false);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -102,9 +92,7 @@ const CustomerStatusPage: React.FC = () => {
     const [showMessage, setShowMessage] = useState({ show: false, title: "", message: "", type: "success" as any });
     const [showLoading, setShowLoading] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
-
-    // Search results for multiple matches
-    const [searchResults, setSearchResults] = useState<typeof customers>([]);
+    const [showPreviewModal, setShowPreviewModal] = useState(false);
 
     const searchOptions = [
         { value: "idPelanggan", label: "IdPel" },
@@ -115,35 +103,31 @@ const CustomerStatusPage: React.FC = () => {
     useEffect(() => {
         fetchCustomers();
         fetchBranches();
+        fetchAreas();
     }, []);
 
-    // Handle query params
     useEffect(() => {
         if (customerIdFromQuery && customers.length > 0) {
             const customer = customers.find(c => c.id.toString() === customerIdFromQuery);
             if (customer) {
                 setSelectedCustomer(customer);
+                setNewDiscount(Number(customer.diskon) || 0);
             }
         }
-        if (actionType === 'nonaktif') {
-            setSelectedAction('NONAKTIF');
-        } else if (actionType === 'berhenti') {
-            setSelectedAction('BERHENTI');
-        }
-    }, [customerIdFromQuery, actionType, customers]);
+    }, [customerIdFromQuery, customers]);
+
+    const [searchResults, setSearchResults] = useState<typeof customers>([]);
 
     const handleSearch = () => {
         if (!filterValues.branchId && filterValues.branchId !== "all") return;
 
         const results = customers.filter(c => {
-            // Filter by branch
             if (filterValues.branchId && filterValues.branchId !== "all") {
                 if (c.area?.branchId.toString() !== filterValues.branchId) {
                     return false;
                 }
             }
 
-            // Filter by search value
             const searchValue = filterValues.searchValue.toLowerCase();
             if (filterValues.searchType === "idPelanggan") {
                 return c.idPelanggan.toLowerCase() === searchValue;
@@ -159,42 +143,51 @@ const CustomerStatusPage: React.FC = () => {
 
         if (results.length === 1) {
             setSelectedCustomer(results[0]);
+            setNewDiscount(Number(results[0].diskon) || 0);
             setSearchResults([]);
         } else if (results.length > 1) {
             setSearchResults(results);
             setSelectedCustomer(null);
+            setNewDiscount(0);
         } else {
             setSearchResults([]);
             setSelectedCustomer(null);
+            setNewDiscount(0);
         }
     };
 
     const handleSelectFromResults = (customer: typeof customers[0]) => {
         setSelectedCustomer(customer);
+        setNewDiscount(Number(customer.diskon) || 0);
         setSearchResults([]);
     };
 
+    const hasChanges = useMemo(() => {
+        if (!selectedCustomer) return false;
+        return newDiscount !== (Number(selectedCustomer.diskon) || 0);
+    }, [selectedCustomer, newDiscount]);
+
     const handleSubmitRequest = async () => {
-        if (!selectedCustomer || !selectedAction) return;
+        if (!selectedCustomer || !hasChanges) return;
 
         setLoading(true);
         setShowLoading(true);
         try {
-            await createRequest({
+            await useDiscountRequestStore.getState().createRequest({
                 customerId: selectedCustomer.id,
-                currentStatus: selectedCustomer.statusPelanggan,
-                newStatus: selectedAction,
-                reason,
+                currentDiscount: Number(selectedCustomer.diskon) || 0,
+                newDiscount: newDiscount,
+                requestNote: requestNote
             });
 
             setShowMessage({
                 show: true,
                 title: "Request Terkirim!",
-                message: `Request ${selectedAction === 'AKTIF' ? 'aktivasi kembali' : selectedAction === 'NONAKTIF' ? 'nonaktif sementara' : 'berhenti berlangganan'} untuk pelanggan ${selectedCustomer?.namaPelanggan} berhasil dikirim dan menunggu persetujuan.`,
+                message: `Request diskon untuk pelanggan ${selectedCustomer?.namaPelanggan} berhasil dikirim dan menunggu persetujuan.`,
                 type: "success"
             });
-            setSelectedAction('');
-            setReason('');
+            setShowPreviewModal(false);
+            setRequestNote("");
         } catch (error: any) {
             const errorMsg = error.response?.data?.message || error.message;
             setShowMessage({
@@ -209,11 +202,8 @@ const CustomerStatusPage: React.FC = () => {
         }
     };
 
-    const canSubmit = selectedCustomer && selectedAction && selectedCustomer.statusPelanggan !== selectedAction;
-
     return (
         <div className="space-y-4 pb-20">
-            {/* Header / Filter Section - SAME AS customer-change.tsx */}
             <div className="max-w-4xl">
                 <div className="flex flex-col md:flex-row gap-4 items-end">
                     <div className="w-full md:w-64 space-y-1.5">
@@ -274,7 +264,6 @@ const CustomerStatusPage: React.FC = () => {
                                     placeholder="Kata Kunci..."
                                     value={filterValues.searchValue}
                                     onChange={(e) => setFilterValues({ ...filterValues, searchValue: e.target.value })}
-                                    onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                                 />
                             </div>
                             <button
@@ -289,7 +278,6 @@ const CustomerStatusPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Search Results Table - shown when multiple customers found */}
             {searchResults.length > 1 && !selectedCustomer && (
                 <div className="bg-white rounded-lg border border-slate-100 overflow-hidden">
                     <div className="bg-amber-50 px-5 py-2 border-b border-amber-100">
@@ -306,14 +294,6 @@ const CustomerStatusPage: React.FC = () => {
                             { header: "TELEPON", render: (row) => row.teleponPelanggan || "-" },
                             { header: "CABANG", render: (row) => branches.find(b => b.id === row.area?.branchId)?.namaBranch || "-" },
                             { header: "AREA", render: (row) => row.area?.namaArea || "-" },
-                            {
-                                header: "STATUS",
-                                render: (row) => (
-                                    <Badge variant={row.statusPelanggan === 'AKTIF' ? 'success' : row.statusPelanggan === 'NONAKTIF' ? 'warning' : 'destructive'}>
-                                        {row.statusPelanggan}
-                                    </Badge>
-                                )
-                            },
                         ]}
                     />
                 </div>
@@ -322,7 +302,7 @@ const CustomerStatusPage: React.FC = () => {
             {selectedCustomer ? (
                 <>
                     <InfoCard
-                        title="PERUBAHAN STATUS PELANGGAN"
+                        title="REQUEST DISKON PELANGGAN"
                         collapsible
                         isCollapsed={isInfoCollapsed}
                         onToggle={() => setIsInfoCollapsed(!isInfoCollapsed)}
@@ -338,157 +318,64 @@ const CustomerStatusPage: React.FC = () => {
                                 >
                                     <RefreshCw size={12} />
                                 </div>
-                                <Badge variant={selectedCustomer.statusPelanggan === 'AKTIF' ? 'success' : selectedCustomer.statusPelanggan === 'NONAKTIF' ? 'warning' : 'destructive'} className="font-bold text-[9px] uppercase h-6 px-2 rounded-sm flex items-center gap-1">
+                                <Badge variant={selectedCustomer.statusPelanggan === 'AKTIF' ? 'success' : 'destructive'} className="font-bold text-[9px] uppercase h-6 px-2 rounded-sm flex items-center gap-1">
                                     <div className="w-1 h-1 bg-white rounded-full animate-pulse" />
                                     {selectedCustomer.statusPelanggan}
                                 </Badge>
                             </div>
                         }
                     >
-                        {/* Current Info */}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-6 gap-x-12 mb-8">
                             <InfoRow label="ID Pelanggan" value={selectedCustomer.idPelanggan} />
                             <InfoRow label="Nama Lengkap" value={selectedCustomer.namaPelanggan} />
                             <InfoRow label="Regional / Cabang" value={branches.find(b => b.id === selectedCustomer.area?.branchId)?.namaBranch} />
-                            <InfoRow label="Nomor Telepon" value={selectedCustomer.teleponPelanggan} />
-                            <InfoRow label="Alamat Pemasangan" value={selectedCustomer.alamatPelanggan} />
-                            <InfoRow label="NIK / Identitas" value={selectedCustomer.identitasPelanggan} />
                         </div>
 
-                        {/* Status Change Form */}
                         <div className="border-t border-slate-100 -mx-6">
                             <div className="bg-slate-50/50 px-6 py-4 border-b border-slate-100">
-                                <h5 className="font-bold text-slate-700 text-[12px] uppercase tracking-wider">Pilih Aksi Perubahan Status</h5>
+                                <h5 className="font-bold text-slate-700 text-[12px] uppercase tracking-wider">Form Perubahan Diskon</h5>
                             </div>
 
                             <div className="p-6">
-                                {/* Show AKTIF option only if customer is not AKTIF */}
-                                {selectedCustomer.statusPelanggan !== 'AKTIF' && (
-                                    <div className="mb-6">
-                                        <button
-                                            onClick={() => setSelectedAction('AKTIF')}
-                                            className={cn(
-                                                "w-full p-6 rounded-lg border-2 text-left transition-all",
-                                                selectedAction === 'AKTIF'
-                                                    ? "border-green-500 bg-green-50"
-                                                    : "border-slate-200 hover:border-green-300 hover:bg-green-50/50"
-                                            )}
-                                        >
-                                            <div className="flex items-center gap-4">
-                                                <div className={cn(
-                                                    "w-12 h-12 rounded-full flex items-center justify-center",
-                                                    selectedAction === 'AKTIF' ? "bg-green-500 text-white" : "bg-green-100 text-green-500"
-                                                )}>
-                                                    <UserCheck size={24} />
-                                                </div>
-                                                <div>
-                                                    <h6 className="font-bold text-slate-800">Aktifkan Kembali</h6>
-                                                    <p className="text-xs text-slate-500 mt-1">Mengaktifkan kembali layanan pelanggan. PPP Secret akan di-enable kembali di MikroTik.</p>
-                                                </div>
-                                            </div>
-                                        </button>
-                                    </div>
-                                )}
-
-                                {/* Show NONAKTIF/BERHENTI options only if customer is AKTIF */}
-                                {selectedCustomer.statusPelanggan === 'AKTIF' && (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                                        {/* Nonaktif Sementara */}
-                                        <button
-                                            onClick={() => setSelectedAction('NONAKTIF')}
-                                            className={cn(
-                                                "p-6 rounded-lg border-2 text-left transition-all",
-                                                selectedAction === 'NONAKTIF'
-                                                    ? "border-amber-500 bg-amber-50"
-                                                    : "border-slate-200 hover:border-amber-300 hover:bg-amber-50/50"
-                                            )}
-                                        >
-                                            <div className="flex items-center gap-4">
-                                                <div className={cn(
-                                                    "w-12 h-12 rounded-full flex items-center justify-center",
-                                                    selectedAction === 'NONAKTIF' ? "bg-amber-500 text-white" : "bg-amber-100 text-amber-500"
-                                                )}>
-                                                    <UserX size={24} />
-                                                </div>
-                                                <div>
-                                                    <h6 className="font-bold text-slate-800">Nonaktif Sementara</h6>
-                                                    <p className="text-xs text-slate-500 mt-1">Layanan dinonaktifkan sementara. Dapat diaktifkan kembali kapan saja.</p>
-                                                </div>
-                                            </div>
-                                        </button>
-
-                                        {/* Berhenti Berlangganan */}
-                                        <button
-                                            onClick={() => setSelectedAction('BERHENTI')}
-                                            className={cn(
-                                                "p-6 rounded-lg border-2 text-left transition-all",
-                                                selectedAction === 'BERHENTI'
-                                                    ? "border-red-500 bg-red-50"
-                                                    : "border-slate-200 hover:border-red-300 hover:bg-red-50/50"
-                                            )}
-                                        >
-                                            <div className="flex items-center gap-4">
-                                                <div className={cn(
-                                                    "w-12 h-12 rounded-full flex items-center justify-center",
-                                                    selectedAction === 'BERHENTI' ? "bg-red-500 text-white" : "bg-red-100 text-red-500"
-                                                )}>
-                                                    <UserMinus size={24} />
-                                                </div>
-                                                <div>
-                                                    <h6 className="font-bold text-slate-800">Berhenti Berlangganan</h6>
-                                                    <p className="text-xs text-slate-500 mt-1">Pelanggan mengakhiri langganan secara permanen.</p>
-                                                </div>
-                                            </div>
-                                        </button>
-                                    </div>
-                                )}
-
-                                {/* Reason Input */}
-                                {selectedAction && (
-                                    <div className="space-y-6 animate-in slide-in-from-top-2 duration-200">
-                                        <FormField label="Alasan Perubahan Status" icon={FileText}>
-                                            <textarea
-                                                value={reason}
-                                                onChange={(e) => setReason(e.target.value)}
-                                                placeholder="Masukkan alasan perubahan status (opsional)..."
-                                                className="w-full h-24 bg-white border border-slate-200 rounded-lg p-4 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none"
+                                <div className="space-y-6 mb-8">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <FormField label="Diskon Saat Ini (Rp)">
+                                            <input
+                                                type="text"
+                                                className="w-full h-10 bg-slate-50 border border-slate-200 rounded-lg px-4 text-sm text-slate-700 outline-none"
+                                                value={Number(selectedCustomer.diskon || 0).toLocaleString('id-ID')}
+                                                disabled
                                             />
                                         </FormField>
 
-                                        {/* Warning for Berhenti */}
-                                        {selectedAction === 'BERHENTI' && (
-                                            <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
-                                                <AlertTriangle size={20} className="text-red-500 flex-shrink-0 mt-0.5" />
-                                                <div>
-                                                    <p className="text-sm font-bold text-red-700">Perhatian!</p>
-                                                    <p className="text-xs text-red-600 mt-1">
-                                                        Tindakan ini akan menghentikan langganan pelanggan secara permanen.
-                                                        PPP Secret di MikroTik akan dinonaktifkan dan pelanggan tidak akan bisa mengakses layanan internet.
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        )}
+                                        <FormField label="Diskon Baru (Rp)">
+                                            <input
+                                                type="number"
+                                                className="w-full h-10 bg-white border border-slate-200 rounded-lg px-4 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all font-bold text-green-600"
+                                                value={newDiscount}
+                                                onChange={(e) => setNewDiscount(Number(e.target.value))}
+                                                placeholder="Contoh: 10000"
+                                            />
+                                        </FormField>
                                     </div>
-                                )}
+                                </div>
 
-                                {/* Submit Button */}
-                                <div className="pt-6 border-t border-slate-100 mt-6">
+                                <div className="pt-6 border-t border-slate-100">
                                     <div className="flex items-center justify-between">
                                         <div>
-                                            {selectedAction && (
-                                                <Badge variant={selectedAction === 'NONAKTIF' ? 'warning' : 'destructive'} className="text-[10px] uppercase">
-                                                    {selectedAction === 'NONAKTIF' ? 'Nonaktif Sementara' : 'Berhenti Berlangganan'}
+                                            {hasChanges && (
+                                                <Badge variant="warning" className="text-[10px] uppercase">
+                                                    Ada perubahan yang belum diajukan
                                                 </Badge>
                                             )}
                                         </div>
                                         <CustomButton
-                                            onClick={() => setShowConfirm(true)}
-                                            disabled={!canSubmit || loading}
-                                            variant={selectedAction === 'BERHENTI' ? 'danger' : 'primary'}
+                                            onClick={() => setShowPreviewModal(true)}
+                                            disabled={!hasChanges || loading}
                                             className="h-11 px-6 rounded-lg font-bold shadow-md"
                                         >
-                                            {loading ? <Loader2 className="animate-spin mr-2" size={16} /> : <Send size={16} className="mr-2" />}
-                                            Ajukan Perubahan Status
+                                            {loading ? <Loader2 className="animate-spin mr-2" size={16} /> : <Save size={16} className="mr-2" />}
+                                            Ajukan Diskon
                                         </CustomButton>
                                     </div>
                                 </div>
@@ -500,7 +387,70 @@ const CustomerStatusPage: React.FC = () => {
                 <div className="min-h-[400px]" />
             )}
 
-            <ModalLoading isOpen={showLoading} message="Sedang mengirim request perubahan status..." />
+            <ModalDetail
+                isOpen={showPreviewModal}
+                onClose={() => setShowPreviewModal(false)}
+                title="Review Perubahan Diskon"
+                maxWidth="md"
+                showFooter={false}
+            >
+                <div className="space-y-6 py-2">
+                    {selectedCustomer && (
+                        <>
+                            <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">ID PELANGGAN</span>
+                                        <span className="text-sm font-bold text-primary">{selectedCustomer.idPelanggan}</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">NAMA PELANGGAN</span>
+                                        <span className="text-sm font-bold text-slate-800">{selectedCustomer.namaPelanggan}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center justify-center gap-6 py-4">
+                                <div className="text-center">
+                                    <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Diskon Lama</p>
+                                    <p className="text-lg text-slate-500 font-bold line-through">Rp {Number(selectedCustomer.diskon || 0).toLocaleString('id-ID')}</p>
+                                </div>
+                                <div className="text-slate-300">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></svg>
+                                </div>
+                                <div className="text-center">
+                                    <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold text-primary">Diskon Baru</p>
+                                    <p className="text-xl text-green-600 font-bold">Rp {newDiscount.toLocaleString('id-ID')}</p>
+                                </div>
+                            </div>
+
+                            <div className="pt-4 border-t border-slate-100 space-y-3">
+                                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Catatan Pemohon:</label>
+                                <CustomTextArea
+                                    placeholder="Berikan alasan atau keterangan pengajuan diskon ini..."
+                                    value={requestNote}
+                                    onChange={(e) => setRequestNote(e.target.value)}
+                                    rows={3}
+                                />
+                            </div>
+
+                            <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
+                                <CustomButton variant="ghost" onClick={() => setShowPreviewModal(false)}>Batal</CustomButton>
+                                <CustomButton
+                                    variant="primary"
+                                    onClick={() => setShowConfirm(true)}
+                                    disabled={!requestNote.trim()}
+                                >
+                                    <Send size={14} className="mr-2" />
+                                    Kirim Request
+                                </CustomButton>
+                            </div>
+                        </>
+                    )}
+                </div>
+            </ModalDetail>
+
+            <ModalLoading isOpen={showLoading} message="Sedang mengirim request diskon..." />
 
             <ModalMessage
                 isOpen={showMessage.show}
@@ -517,9 +467,8 @@ const CustomerStatusPage: React.FC = () => {
                     setShowConfirm(false);
                     handleSubmitRequest();
                 }}
-                variant={selectedAction === 'BERHENTI' ? 'danger' : 'primary'}
-                title={`Konfirmasi ${selectedAction === 'AKTIF' ? 'Aktivasi Kembali' : selectedAction === 'NONAKTIF' ? 'Nonaktif Sementara' : 'Berhenti Berlangganan'}`}
-                message={`Apakah Anda yakin ingin mengajukan ${selectedAction === 'AKTIF' ? 'aktivasi kembali' : selectedAction === 'NONAKTIF' ? 'nonaktif sementara' : 'berhenti berlangganan'} untuk pelanggan "${selectedCustomer?.namaPelanggan}"? Request ini akan menunggu persetujuan.`}
+                title="Konfirmasi Request Diskon"
+                message={`Apakah Anda yakin ingin mengajukan diskon untuk pelanggan "${selectedCustomer?.namaPelanggan}"? Request ini akan menunggu persetujuan terlebih dahulu sebelum diterapkan.`}
                 confirmLabel="Ya, Ajukan Request"
                 cancelLabel="Batal"
             />
@@ -527,4 +476,4 @@ const CustomerStatusPage: React.FC = () => {
     );
 };
 
-export default CustomerStatusPage;
+export default DiscountRequestPage;

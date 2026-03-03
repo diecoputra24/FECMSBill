@@ -8,13 +8,12 @@ import { useConnectionChangeRequestStore } from "@/store/connectionChangeRequest
 import { CustomSelect } from "@/components/ui/custom-select";
 import { CustomButton } from "@/components/ui/custom-button";
 import { CustomTable } from "@/components/ui/custom-table";
-import { CustomInput } from "@/components/ui/custom-input";
+import { CustomInput, CustomTextArea } from "@/components/ui/custom-input";
 import { Badge } from "@/components/ui/badge";
 import {
     Search,
     ChevronDown,
     ChevronUp,
-    RefreshCw,
     Loader2,
     Save,
     Activity,
@@ -142,7 +141,8 @@ const ConnectionChangePage: React.FC = () => {
                 pppUsername: currentConnection.pppUsername || "",
                 pppPassword: currentConnection.pppPassword || "",
                 pppService: currentConnection.pppService || "pppoe",
-                secretMode: currentConnection.secretMode || "EXISTING"
+                secretMode: currentConnection.secretMode || "EXISTING",
+                requestNote: ""
             });
         }
     }, [currentConnection, formData, setFormData]);
@@ -253,7 +253,7 @@ const ConnectionChangePage: React.FC = () => {
                 newPppService: formData.pppService,
                 newSecretMode: formData.secretMode,
                 newPaketId: currentConnection.paketId,
-                requestNote: "Perubahan konfigurasi koneksi PPPoE",
+                requestNote: formData.requestNote || "Perubahan konfigurasi koneksi PPPoE",
             });
 
             resetFormData();
@@ -528,7 +528,6 @@ const ConnectionChangePage: React.FC = () => {
                                         )}
                                     </div>
                                 )}
-
                                 {formData.secretMode === 'NONE' && (
                                     <div className="p-4 bg-amber-50 border border-amber-200/50 rounded-xl">
                                         <p className="text-[12px] text-amber-700 font-bold leading-relaxed italic">
@@ -536,6 +535,16 @@ const ConnectionChangePage: React.FC = () => {
                                         </p>
                                     </div>
                                 )}
+
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Catatan Pemohon</label>
+                                    <CustomTextArea
+                                        placeholder="Tambahkan catatan alasan perubahan..."
+                                        className="min-h-[80px] text-sm"
+                                        value={formData.requestNote}
+                                        onChange={(e) => setFormData({ ...formData, requestNote: e.target.value })}
+                                    />
+                                </div>
 
                                 <CustomButton
                                     onClick={() => setShowConfirm(true)}
@@ -548,7 +557,7 @@ const ConnectionChangePage: React.FC = () => {
                             </div>
                         </InfoCard>
                     </div>
-                </div>
+                </div >
             )}
 
             <ModalLoading isOpen={showLoading} message="Sedang memproses pengajuan perubahan koneksi..." />
@@ -575,126 +584,128 @@ const ConnectionChangePage: React.FC = () => {
             />
 
             {/* Secrets Search Modal */}
-            {isSecretsModalOpen && createPortal(
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200 border border-slate-200">
-                        {/* Header */}
-                        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10">
-                            <div>
-                                <h3 className="text-lg font-bold text-slate-800">Cari Secret MikroTik</h3>
-                                <p className="text-xs text-slate-500 font-medium">Memilih dari daftar secret yang tersedia dengan profile yang sama</p>
-                            </div>
-                            <button
-                                onClick={() => { setIsSecretsModalOpen(false); setSecretsSearch(""); }}
-                                className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
-                            >
-                                <X size={20} />
-                            </button>
-                        </div>
-
-                        {/* Search Bar */}
-                        <div className="p-5 bg-slate-50/50 border-b border-slate-100 italic">
-                            <div className="relative group">
-                                <Search size={20} className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" />
-                                <input
-                                    type="text"
-                                    placeholder="Ketik username atau keterangan..."
-                                    className="w-full h-12 pl-11 pr-4 bg-white border border-slate-200 rounded-xl text-sm font-medium outline-none shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all"
-                                    value={secretsSearch}
-                                    onChange={(e) => setSecretsSearch(e.target.value)}
-                                    autoFocus
-                                />
-                            </div>
-                        </div>
-
-                        {/* Content */}
-                        <div className="flex-1 overflow-y-auto">
-                            {secretsLoading ? (
-                                <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-                                    <Loader2 size={40} className="animate-spin mb-4 text-primary" />
-                                    <p className="text-sm font-bold">Menghubungi MikroTik...</p>
+            {
+                isSecretsModalOpen && createPortal(
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200 border border-slate-200">
+                            {/* Header */}
+                            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white sticky top-0 z-10">
+                                <div>
+                                    <h3 className="text-lg font-bold text-slate-800">Cari Secret MikroTik</h3>
+                                    <p className="text-xs text-slate-500 font-medium">Memilih dari daftar secret yang tersedia dengan profile yang sama</p>
                                 </div>
-                            ) : secretsError ? (
-                                <div className="p-8 text-center">
-                                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-red-100 text-red-500 mb-4">
-                                        <X size={24} />
+                                <button
+                                    onClick={() => { setIsSecretsModalOpen(false); setSecretsSearch(""); }}
+                                    className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+                                >
+                                    <X size={20} />
+                                </button>
+                            </div>
+
+                            {/* Search Bar */}
+                            <div className="p-5 bg-slate-50/50 border-b border-slate-100 italic">
+                                <div className="relative group">
+                                    <Search size={20} className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" />
+                                    <input
+                                        type="text"
+                                        placeholder="Ketik username atau keterangan..."
+                                        className="w-full h-12 pl-11 pr-4 bg-white border border-slate-200 rounded-xl text-sm font-medium outline-none shadow-sm focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all"
+                                        value={secretsSearch}
+                                        onChange={(e) => setSecretsSearch(e.target.value)}
+                                        autoFocus
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Content */}
+                            <div className="flex-1 overflow-y-auto">
+                                {secretsLoading ? (
+                                    <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                                        <Loader2 size={40} className="animate-spin mb-4 text-primary" />
+                                        <p className="text-sm font-bold">Menghubungi MikroTik...</p>
                                     </div>
-                                    <p className="text-sm text-red-600 font-bold max-w-sm mx-auto">{secretsError}</p>
-                                </div>
-                            ) : (availableSecrets?.length || 0) === 0 ? (
-                                <div className="text-center py-20 text-slate-400">
-                                    <Search size={56} className="mx-auto mb-4 opacity-20" />
-                                    <p className="text-sm font-bold">Tidak ada data ditemukan</p>
-                                    <p className="text-xs font-medium">Pastikan profile MikroTik sudah sesuai</p>
-                                </div>
-                            ) : (
-                                <table className="w-full text-sm">
-                                    <thead className="bg-slate-50/50 sticky top-0 z-10">
-                                        <tr className="border-b border-slate-200">
-                                            <th className="px-5 py-3.5 text-left text-[11px] font-black text-slate-500 uppercase tracking-widest">Username</th>
-                                            <th className="px-5 py-3.5 text-left text-[11px] font-black text-slate-500 uppercase tracking-widest">Password</th>
-                                            <th className="px-5 py-3.5 text-left text-[11px] font-black text-slate-500 uppercase tracking-widest">Profile</th>
-                                            <th className="px-5 py-3.5 text-center text-[11px] font-black text-slate-500 uppercase tracking-widest w-[110px]">Aksi</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-slate-100">
-                                        {filteredSecrets.length === 0 ? (
-                                            <tr>
-                                                <td colSpan={4} className="px-5 py-12 text-center text-slate-400">
-                                                    <p className="text-sm font-bold">Hasil untuk "{secretsSearch}" tidak ditemukan</p>
-                                                </td>
+                                ) : secretsError ? (
+                                    <div className="p-8 text-center">
+                                        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-red-100 text-red-500 mb-4">
+                                            <X size={24} />
+                                        </div>
+                                        <p className="text-sm text-red-600 font-bold max-w-sm mx-auto">{secretsError}</p>
+                                    </div>
+                                ) : (availableSecrets?.length || 0) === 0 ? (
+                                    <div className="text-center py-20 text-slate-400">
+                                        <Search size={56} className="mx-auto mb-4 opacity-20" />
+                                        <p className="text-sm font-bold">Tidak ada data ditemukan</p>
+                                        <p className="text-xs font-medium">Pastikan profile MikroTik sudah sesuai</p>
+                                    </div>
+                                ) : (
+                                    <table className="w-full text-sm">
+                                        <thead className="bg-slate-50/50 sticky top-0 z-10">
+                                            <tr className="border-b border-slate-200">
+                                                <th className="px-5 py-3.5 text-left text-[11px] font-black text-slate-500 uppercase tracking-widest">Username</th>
+                                                <th className="px-5 py-3.5 text-left text-[11px] font-black text-slate-500 uppercase tracking-widest">Password</th>
+                                                <th className="px-5 py-3.5 text-left text-[11px] font-black text-slate-500 uppercase tracking-widest">Profile</th>
+                                                <th className="px-5 py-3.5 text-center text-[11px] font-black text-slate-500 uppercase tracking-widest w-[110px]">Aksi</th>
                                             </tr>
-                                        ) : (
-                                            filteredSecrets.map((secret) => (
-                                                <tr key={secret.id || secret.name} className="hover:bg-slate-50/80 transition-colors group">
-                                                    <td className="px-5 py-4">
-                                                        <span className="font-mono font-black text-slate-700">{secret.name}</span>
-                                                    </td>
-                                                    <td className="px-5 py-4">
-                                                        <span className="font-mono text-slate-400 italic">
-                                                            {secret.password || "-"}
-                                                        </span>
-                                                    </td>
-                                                    <td className="px-5 py-4">
-                                                        <Badge variant="secondary" className="text-[10px] font-black px-2 py-0.5 rounded uppercase">
-                                                            {secret.profile}
-                                                        </Badge>
-                                                    </td>
-                                                    <td className="px-5 py-4 text-center">
-                                                        <button
-                                                            type="button"
-                                                            className="px-4 py-2 text-[11px] font-black bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-primary hover:text-white hover:border-primary transition-all shadow-sm"
-                                                            onClick={() => handleSelectSecret(secret)}
-                                                        >
-                                                            PILIH
-                                                        </button>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {filteredSecrets.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan={4} className="px-5 py-12 text-center text-slate-400">
+                                                        <p className="text-sm font-bold">Hasil untuk "{secretsSearch}" tidak ditemukan</p>
                                                     </td>
                                                 </tr>
-                                            ))
-                                        )}
-                                    </tbody>
-                                </table>
-                            )}
-                        </div>
+                                            ) : (
+                                                filteredSecrets.map((secret) => (
+                                                    <tr key={secret.id || secret.name} className="hover:bg-slate-50/80 transition-colors group">
+                                                        <td className="px-5 py-4">
+                                                            <span className="font-mono font-black text-slate-700">{secret.name}</span>
+                                                        </td>
+                                                        <td className="px-5 py-4">
+                                                            <span className="font-mono text-slate-400 italic">
+                                                                {secret.password || "-"}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-5 py-4">
+                                                            <Badge variant="secondary" className="text-[10px] font-black px-2 py-0.5 rounded uppercase">
+                                                                {secret.profile}
+                                                            </Badge>
+                                                        </td>
+                                                        <td className="px-5 py-4 text-center">
+                                                            <button
+                                                                type="button"
+                                                                className="px-4 py-2 text-[11px] font-black bg-white border border-slate-200 text-slate-600 rounded-lg hover:bg-primary hover:text-white hover:border-primary transition-all shadow-sm"
+                                                                onClick={() => handleSelectSecret(secret)}
+                                                            >
+                                                                PILIH
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                )}
+                            </div>
 
-                        {/* Footer */}
-                        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
-                            <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">
-                                Data: <strong>{filteredSecrets?.length || 0}</strong> / {availableSecrets?.length || 0}
-                            </p>
-                            <button
-                                type="button"
-                                className="px-5 py-2 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
-                                onClick={() => { setIsSecretsModalOpen(false); setSecretsSearch(""); }}
-                            >
-                                CLOSE
-                            </button>
+                            {/* Footer */}
+                            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                                <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">
+                                    Data: <strong>{filteredSecrets?.length || 0}</strong> / {availableSecrets?.length || 0}
+                                </p>
+                                <button
+                                    type="button"
+                                    className="px-5 py-2 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
+                                    onClick={() => { setIsSecretsModalOpen(false); setSecretsSearch(""); }}
+                                >
+                                    CLOSE
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                </div>,
-                document.body
-            )}
-        </div>
+                    </div>,
+                    document.body
+                )
+            }
+        </div >
     );
 };
 

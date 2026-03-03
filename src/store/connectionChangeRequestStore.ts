@@ -50,23 +50,91 @@ export interface CreateConnectionChangeRequestData {
     requestedBy?: string;
 }
 
+export interface FilterValues {
+    search: string;
+    branchId: string;
+    areaId: string;
+    status: string;
+}
+
+export interface Pagination {
+    currentPage: number;
+    pageSize: number;
+}
+
 interface ConnectionChangeRequestState {
     requests: ConnectionChangeRequest[];
     loading: boolean;
     error: string | null;
 
+    // Filter & Pagination State
+    filterValues: FilterValues;
+    appliedFilters: FilterValues;
+    pagination: Pagination;
+
+    // History-specific State
+    historyFilterValues: FilterValues;
+    appliedHistoryFilters: FilterValues;
+    historyPagination: Pagination;
+
+    setFilterValues: (values: Partial<FilterValues>) => void;
+    setAppliedFilters: (values: FilterValues) => void;
+    setPagination: (values: Partial<Pagination>) => void;
+
+    setHistoryFilterValues: (values: Partial<FilterValues>) => void;
+    setAppliedHistoryFilters: (values: FilterValues) => void;
+    setHistoryPagination: (values: Partial<Pagination>) => void;
+
+    selectedIds: (string | number)[];
+    setSelectedIds: (ids: (string | number)[]) => void;
     fetchRequests: (force?: boolean) => Promise<void>;
     fetchPendingRequests: () => Promise<void>;
     createRequest: (data: CreateConnectionChangeRequestData) => Promise<void>;
     approveRequest: (id: number, approvalNote?: string, approvedBy?: string) => Promise<void>;
     rejectRequest: (id: number, approvalNote?: string, approvedBy?: string) => Promise<void>;
     deleteRequest: (id: number) => Promise<void>;
+    resetFilters: () => void;
+    resetHistoryFilters: () => void;
 }
+
+const initialFilters: FilterValues = {
+    search: "",
+    branchId: "",
+    areaId: "",
+    status: "PENDING"
+};
+
+const initialHistoryFilters: FilterValues = {
+    search: "",
+    branchId: "",
+    areaId: "",
+    status: "all"
+};
 
 export const useConnectionChangeRequestStore = create<ConnectionChangeRequestState>((set, get) => ({
     requests: [],
     loading: false,
     error: null,
+
+    filterValues: initialFilters,
+    appliedFilters: initialFilters,
+    pagination: { currentPage: 1, pageSize: 10 },
+
+    historyFilterValues: initialHistoryFilters,
+    appliedHistoryFilters: initialHistoryFilters,
+    historyPagination: { currentPage: 1, pageSize: 10 },
+
+    selectedIds: [],
+
+    setSelectedIds: (ids) => set({ selectedIds: ids }),
+
+    setFilterValues: (values) => set((state) => ({ filterValues: { ...state.filterValues, ...values } })),
+    setAppliedFilters: (values) => set({ appliedFilters: values }),
+    setPagination: (values) => set((state) => ({ pagination: { ...state.pagination, ...values } })),
+
+    setHistoryFilterValues: (values) => set((state) => ({ historyFilterValues: { ...state.historyFilterValues, ...values } })),
+    setAppliedHistoryFilters: (values) => set({ appliedHistoryFilters: values }),
+    setHistoryPagination: (values) => set((state) => ({ historyPagination: { ...state.historyPagination, ...values } })),
 
     fetchRequests: async (force = false) => {
         if (!force && get().requests.length > 0) return;
@@ -138,4 +206,22 @@ export const useConnectionChangeRequestStore = create<ConnectionChangeRequestSta
             throw error;
         }
     },
+
+    resetFilters: () => set({
+        filterValues: initialFilters,
+        appliedFilters: initialFilters,
+        pagination: { currentPage: 1, pageSize: 10 },
+        requests: [],
+        loading: false,
+        error: null
+    }),
+
+    resetHistoryFilters: () => set({
+        historyFilterValues: initialHistoryFilters,
+        appliedHistoryFilters: initialHistoryFilters,
+        historyPagination: { currentPage: 1, pageSize: 10 },
+        requests: [],
+        loading: false,
+        error: null
+    }),
 }));

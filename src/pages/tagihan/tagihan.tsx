@@ -694,7 +694,7 @@ const InvoicePage: React.FC = () => {
                 invoicesToPay,
                 paymentConfig.amount,
                 paymentConfig.method,
-                1, // TODO: Get actual admin ID from auth
+                user?.id || '',
                 selectedCustomerInvoices[0]?.customerId,
                 needsProof ? proofImage! : undefined
             );
@@ -727,7 +727,7 @@ const InvoicePage: React.FC = () => {
                 invoiceId: clickedInvoice.id,
                 promiseDate: promiseConfig.date,
                 note: promiseConfig.note,
-                adminId: 1 // TODO: Get actual admin ID
+                adminId: user?.id || ''
             });
             setIsPromiseModalOpen(false);
             setIsDetailModalOpen(false);

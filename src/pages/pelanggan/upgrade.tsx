@@ -7,6 +7,8 @@ import { useUpgradeRequestStore } from "@/store/upgradeRequestStore";
 import { CustomSelect } from "@/components/ui/custom-select";
 import { CustomButton } from "@/components/ui/custom-button";
 import { CustomTable } from "@/components/ui/custom-table";
+import { CustomTextArea } from "@/components/ui/custom-input";
+import { ModalDetail } from "@/components/ui/modal-detail";
 import { Badge } from "@/components/ui/badge";
 import {
     Search,
@@ -16,16 +18,17 @@ import {
     Loader2,
     Save,
     TrendingUp,
-    TrendingDown
+    TrendingDown,
+    ArrowRight,
+    ShoppingBag
 } from "lucide-react";
 import { ModalMessage } from "@/components/ui/modal-message";
 import { ModalLoading } from "@/components/ui/modal-loading";
 
-import { ModalConfirm } from "@/components/ui/modal-confirm";
 import { useSearchParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
-// Helper Components - EXACT copy from detail.tsx
+// Helper Components
 const InfoCard = ({ title, children, className, status, collapsible, isCollapsed, onToggle }: { title: string; children: React.ReactNode; className?: string; status?: React.ReactNode; collapsible?: boolean; isCollapsed?: boolean; onToggle?: () => void }) => (
     <div className={cn("rounded-lg overflow-hidden flex flex-col bg-white border border-slate-100 transition-all duration-300", className)}>
         <div className="bg-slate-50 px-5 py-1.5 border-b border-slate-100 flex justify-between items-center">
@@ -84,11 +87,12 @@ const UpgradePage: React.FC = () => {
 
     const [loading, setLoading] = useState(false);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [requestNote, setRequestNote] = useState("");
 
     // Modal states
     const [showMessage, setShowMessage] = useState({ show: false, title: "", message: "", type: "success" as any });
     const [showLoading, setShowLoading] = useState(false);
-    const [showConfirm, setShowConfirm] = useState(false);
+    const [showPreview, setShowPreview] = useState(false);
 
     const searchOptions = [
         { value: "idPelanggan", label: "IdPel" },
@@ -181,16 +185,19 @@ const UpgradePage: React.FC = () => {
                 customerId: selectedCustomer.id,
                 currentPaketId: currentPaket.id,
                 newPaketId: parseInt(newPaketId),
-                requestedBy: "Admin", // TODO: Get from auth context
+                requestNote,
+                requestedBy: "Admin" // Should be dynamic from auth
             });
 
             setNewPaketId("");
+            setRequestNote("");
             setShowMessage({
                 show: true,
                 title: "Request Terkirim!",
                 message: `Request upgrade/downgrade untuk pelanggan ${selectedCustomer?.namaPelanggan} berhasil dikirim dan menunggu persetujuan.`,
                 type: "success"
             });
+            setShowPreview(false);
         } catch (error: any) {
             const errorMsg = error.response?.data?.message || error.message;
             setShowMessage({
@@ -212,7 +219,7 @@ const UpgradePage: React.FC = () => {
 
     return (
         <div className="space-y-4 pb-20">
-            {/* Header / Filter Section - EXACT like detail.tsx */}
+            {/* Header / Filter Section */}
             <div className="max-w-4xl">
                 <div className="flex flex-col md:flex-row gap-4 items-end">
                     <div className="w-full md:w-64 space-y-1.5">
@@ -287,7 +294,7 @@ const UpgradePage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Search Results Table - shown when multiple customers found */}
+            {/* Search Results Table */}
             {searchResults.length > 1 && !selectedCustomer && (
                 <div className="bg-white rounded-lg border border-slate-100 overflow-hidden">
                     <div className="bg-amber-50 px-5 py-2 border-b border-amber-100">
@@ -311,7 +318,7 @@ const UpgradePage: React.FC = () => {
 
             {selectedCustomer ? (
                 <>
-                    {/* Detail Information Card - EXACT like detail.tsx */}
+                    {/* Detail Information Card */}
                     <InfoCard
                         title="UPGRADE / DOWNGRADE PAKET"
                         collapsible
@@ -336,7 +343,6 @@ const UpgradePage: React.FC = () => {
                             </div>
                         }
                     >
-                        {/* Customer Info Grid - EXACT like detail.tsx */}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-6 gap-x-12">
                             <InfoRow label="ID Pelanggan" value={selectedCustomer.idPelanggan} />
                             <InfoRow label="Nama Lengkap" value={selectedCustomer.namaPelanggan} />
@@ -347,7 +353,6 @@ const UpgradePage: React.FC = () => {
                             <InfoRow label="Regional / Cabang" value={branches.find(b => b.id === selectedCustomer.area?.branchId)?.namaBranch} />
                         </div>
 
-                        {/* Upgrade Section - Inside InfoCard, after customer info */}
                         <div className="mt-8 border-t border-slate-100 -mx-6">
                             <div className="bg-slate-50/50 px-6 py-4 border-b border-slate-100">
                                 <h5 className="font-bold text-slate-700 text-[12px] uppercase tracking-wider">Konfigurasi Paket</h5>
@@ -389,7 +394,6 @@ const UpgradePage: React.FC = () => {
                                                     label: `${p.namaPaket} - Rp ${Number(p.hargaPaket).toLocaleString('id-ID')}`,
                                                     value: p.id.toString()
                                                 }))}
-
                                                 onChange={setNewPaketId}
                                             />
 
@@ -423,13 +427,23 @@ const UpgradePage: React.FC = () => {
                                                 </div>
                                             )}
 
+                                            <div className="py-2">
+                                                <CustomTextArea
+                                                    label="Catatan Pemohon (Opsional)"
+                                                    placeholder="Contoh: Permintaan pelanggan untuk upgrade kecepatan..."
+                                                    value={requestNote}
+                                                    onChange={(e) => setRequestNote(e.target.value)}
+                                                    rows={3}
+                                                />
+                                            </div>
+
                                             <CustomButton
-                                                onClick={() => setShowConfirm(true)}
+                                                onClick={() => setShowPreview(true)}
                                                 disabled={!newPaketId || loading}
                                                 className="w-full h-11 rounded-lg font-bold shadow-md"
                                             >
                                                 {loading ? <Loader2 className="animate-spin mr-2" size={16} /> : <Save size={16} className="mr-2" />}
-                                                Simpan Perubahan Paket
+                                                Ajukan Perubahan Paket
                                             </CustomButton>
                                         </div>
                                     </div>
@@ -452,20 +466,70 @@ const UpgradePage: React.FC = () => {
                 type={showMessage.type}
             />
 
-            <ModalConfirm
-                isOpen={showConfirm}
-                onClose={() => setShowConfirm(false)}
-                onConfirm={() => {
-                    setShowConfirm(false);
-                    handleUpdatePackage();
-                }}
+            {/* Preview Modal */}
+            <ModalDetail
+                isOpen={showPreview}
+                onClose={() => setShowPreview(false)}
                 title="Konfirmasi Request Perubahan"
-                message={`Apakah Anda yakin ingin mengajukan perubahan paket pelanggan "${selectedCustomer?.namaPelanggan}" dari "${currentPaket?.namaPaket}" ke "${selectedNewPaket?.namaPaket}"? Request ini akan menunggu persetujuan terlebih dahulu sebelum diterapkan.`}
-                confirmLabel="Ya, Ajukan Request"
+                maxWidth="md"
+                onConfirm={handleUpdatePackage}
+                confirmLabel="Ya, Kirim Request"
                 cancelLabel="Batal"
-            />
+            >
+                <div className="space-y-4">
+                    <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                                <ShoppingBag size={20} />
+                            </div>
+                            <div>
+                                <h4 className="text-sm font-bold text-slate-800">{selectedCustomer?.namaPelanggan}</h4>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{selectedCustomer?.idPelanggan}</p>
+                            </div>
+                        </div>
+                    </div>
 
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between p-3 bg-white border border-slate-100 rounded-lg shadow-sm">
+                            <div className="flex-1">
+                                <p className="text-[10px] text-slate-400 uppercase font-black mb-1">Paket Lama</p>
+                                <p className="text-xs font-bold text-slate-600 line-through">{currentPaket?.namaPaket}</p>
+                                <p className="text-[10px] text-slate-400">Rp {Number(currentPaket?.hargaPaket).toLocaleString('id-ID')}</p>
+                            </div>
+                            <ArrowRight className="mx-4 text-slate-300" size={16} />
+                            <div className="flex-1 text-right">
+                                <p className="text-[10px] text-primary uppercase font-black mb-1">Paket Baru</p>
+                                <p className="text-xs font-bold text-primary">{selectedNewPaket?.namaPaket}</p>
+                                <p className="text-[10px] text-primary">Rp {Number(selectedNewPaket?.hargaPaket).toLocaleString('id-ID')}</p>
+                            </div>
+                        </div>
 
+                        <div className={cn(
+                            "p-3 rounded-lg border flex items-center justify-between",
+                            priceDiff >= 0 ? "bg-green-50 border-green-100" : "bg-amber-50 border-amber-100"
+                        )}>
+                            <span className="text-[11px] font-bold text-slate-600 uppercase">Selisih Biaya:</span>
+                            <span className={cn(
+                                "text-sm font-black",
+                                priceDiff >= 0 ? "text-green-600" : "text-amber-600"
+                            )}>
+                                {priceDiff >= 0 ? "+" : ""}Rp {priceDiff.toLocaleString('id-ID')}
+                            </span>
+                        </div>
+
+                        <div className="space-y-1">
+                            <label className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Catatan Pemohon:</label>
+                            <div className="bg-slate-50 rounded-lg p-3 border border-slate-100 text-xs italic text-slate-600">
+                                {requestNote || "Tidak ada catatan."}
+                            </div>
+                        </div>
+                    </div>
+
+                    <p className="text-[11px] text-slate-400 text-center leading-relaxed px-4">
+                        Request ini akan dikirim ke antrian persetujuan admin. Paket pelanggan tidak akan berubah sampai disetujui.
+                    </p>
+                </div>
+            </ModalDetail>
         </div>
     );
 };

@@ -11,9 +11,18 @@ import { useAddonStore } from "@/store/addonStore"
 import { usePackageStore } from "@/store/packageStore"
 import { useInvoiceStore } from "@/store/invoiceStore"
 import { useOpportunityStore } from "@/store/opportunityStore"
-import { useUpgradeStore } from "@/store/upgradeStore"
 import { findMenuByHref } from "@/config/menu";
 import { useAuthStore } from "@/store/authStore";
+import { useUpgradeStore } from "@/store/upgradeStore"
+import { useUpgradeRequestStore } from "@/store/upgradeRequestStore";
+import { useCustomerChangeRequestStore } from "@/store/customerChangeRequestStore";
+import { useCustomerChangeStore } from "@/store/customerChangeStore";
+import { useCustomerStatusStore } from "@/store/customerStatusStore";
+import { useConnectionChangeStore } from "@/store/connectionChangeStore";
+import { useCustomerStatusRequestStore } from "@/store/customerStatusRequestStore";
+import { useConnectionChangeRequestStore } from "@/store/connectionChangeRequestStore";
+import { useDiscountRequestStore } from "@/store/discountRequestStore";
+import { useTicketStore } from "@/store/ticketStore";
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
     const navigate = useNavigate()
@@ -131,23 +140,80 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             if (tab.href === "/pengaturan/router" || tab.id.startsWith("router")) {
                 useRouterStore.getState().resetFilters();
             }
-            if (tab.href === "/pelanggan" || tab.id.startsWith("pelanggan") || tab.id.startsWith("customer")) {
+            if (tab.href === "/pelanggan" || tab.id === "pelanggan-list") {
                 useCustomerStore.getState().resetFilters();
             }
             if (tab.href === "/layanan/addon" || tab.id.startsWith("addon")) {
                 useAddonStore.getState().resetFilters();
             }
-            if (tab.href === "/layanan" || tab.id === "semua-layanan" || tab.id.startsWith("package")) {
+            if (tab.href === "/layanan" || tab.id === "paket-list") {
                 usePackageStore.getState().resetFilters();
             }
             if (tab.href === "/tagihan" || tab.id === "tagihan") {
                 useInvoiceStore.getState().resetFilters();
             }
-            if (tab.href === "/opportunity/detail" || tab.id.startsWith("opportunity")) {
+            if (tab.href === "/opportunity/list" || tab.id === "list-opportunity") {
                 useOpportunityStore.getState().resetFilters();
             }
-            if (tab.href === "/pelanggan/upgrade" || tab.id.startsWith("upgrade")) {
+
+            // Request stores reset
+            if (tab.id === "upgrade-request" || tab.href === "/pelanggan/upgrade") {
                 useUpgradeStore.getState().resetState();
+            }
+            if (tab.id === "upgrade-approval" || tab.href === "/pelanggan/upgrade/approval") {
+                useUpgradeRequestStore.getState().resetFilters();
+            }
+            if (tab.id === "upgrade-history" || tab.href === "/pelanggan/upgrade/history") {
+                useUpgradeRequestStore.getState().resetHistoryFilters();
+            }
+            if (tab.id === "change-request" || tab.href === "/pelanggan/change") {
+                useCustomerChangeStore.getState().resetState();
+            }
+            if (tab.id === "change-approval" || tab.href === "/pelanggan/change/approval") {
+                useCustomerChangeRequestStore.getState().resetFilters();
+            }
+            if (tab.id === "change-history" || tab.href === "/pelanggan/change/history") {
+                useCustomerChangeRequestStore.getState().resetHistoryFilters();
+            }
+            if (tab.id === "status-request" || tab.href === "/pelanggan/status") {
+                useCustomerStatusStore.getState().resetState();
+            }
+            if (tab.id === "status-approval" || tab.href === "/pelanggan/status/approval") {
+                useCustomerStatusRequestStore.getState().resetFilters();
+            }
+            if (tab.id === "status-history" || tab.href === "/pelanggan/status/history") {
+                useCustomerStatusRequestStore.getState().resetHistoryFilters();
+            }
+            if (tab.id === "connection-request" || tab.href === "/pelanggan/connection") {
+                useConnectionChangeStore.getState().resetState();
+            }
+            if (tab.id === "connection-approval" || tab.href === "/pelanggan/connection/approval") {
+                useConnectionChangeRequestStore.getState().resetFilters();
+            }
+            if (tab.id === "connection-history" || tab.href === "/pelanggan/connection/history") {
+                useConnectionChangeRequestStore.getState().resetHistoryFilters();
+            }
+
+            // Discount request reset
+            if (tab.id === "diskon-approval" || tab.href === "/layanan/diskon/approval") {
+                useDiscountRequestStore.getState().resetFilters();
+            }
+            if (tab.id === "diskon-history" || tab.href === "/layanan/diskon/history") {
+                useDiscountRequestStore.getState().resetHistoryFilters();
+            }
+
+            // Ticketing stores reset
+            if (tab.href === "/ticketing/incident" || tab.id === "ticket-incident-list") {
+                useTicketStore.getState().resetFilters('INCIDENT');
+            }
+            if (tab.href === "/ticketing/incident/request" || tab.id === "ticket-incident-request") {
+                useTicketStore.getState().resetForm('INCIDENT');
+            }
+            if (tab.href === "/ticketing/complaint" || tab.id === "ticket-complaint-list") {
+                useTicketStore.getState().resetFilters('COMPLAINT');
+            }
+            if (tab.href === "/ticketing/complaint/request" || tab.id === "ticket-complaint-request") {
+                useTicketStore.getState().resetForm('COMPLAINT');
             }
         }
 

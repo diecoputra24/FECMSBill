@@ -31,9 +31,9 @@ interface InvoiceState {
     getBatchInfo: () => Promise<any>;
     deleteInvoice: (id: number) => Promise<void>;
     recalculateInvoice: (id: number) => Promise<void>;
-    payInvoice: (invoiceIds: number[], amountPaid: number, method: string, adminId: number, customerId: number, proofImage?: string) => Promise<void>;
+    payInvoice: (invoiceIds: number[], amountPaid: number, method: string, adminId: string, customerId: number, proofImage?: string) => Promise<void>;
     runIsolation: () => Promise<any>;
-    createPromise: (data: { customerId: number; invoiceId?: number; promiseDate: string; note?: string; adminId: number }) => Promise<void>;
+    createPromise: (data: { customerId: number; invoiceId?: number; promiseDate: string; note?: string; adminId: string }) => Promise<void>;
     fetchPromises: () => Promise<any[]>;
     deletePromise: (id: number) => Promise<void>;
 }

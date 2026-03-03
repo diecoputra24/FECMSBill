@@ -1,53 +1,28 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { useConnectionChangeRequestStore } from "@/store/connectionChangeRequestStore";
-import type { ConnectionChangeRequest } from "@/store/connectionChangeRequestStore";
+import { useDiscountRequestStore } from "@/store/discountRequestStore";
+import type { DiscountRequest } from "@/store/discountRequestStore";
 import { useCustomerStore } from "@/store/customerStore";
 import { useBranchStore } from "@/store/branchStore";
 import { useAreaStore } from "@/store/areaStore";
-import { usePackageStore } from "@/store/packageStore";
 import { CustomTable } from "@/components/ui/custom-table";
 import { CustomFilter } from "@/components/ui/custom-filter";
+import { CustomSelect } from "@/components/ui/custom-select";
+import { CustomButton } from "@/components/ui/custom-button";
 import { CustomTextArea } from "@/components/ui/custom-input";
 import { ModalDetail } from "@/components/ui/modal-detail";
 import { ModalMessage } from "@/components/ui/modal-message";
 import { ModalLoading } from "@/components/ui/modal-loading";
 import { Badge } from "@/components/ui/badge";
-import { CustomButton } from "@/components/ui/custom-button";
 import {
     CheckCircle,
-    XCircle,
+    Percent,
     ArrowRight,
-    Eye,
-    User as UserIcon,
-    Lock,
-    Activity,
-    Edit3,
-    Globe
+    Eye
 } from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 
-// Change comparison component
-const ChangeItem = ({ label, oldValue, newValue, icon: Icon }: { label: string; oldValue: string; newValue: string; icon?: React.ComponentType<{ size?: number; className?: string }> }) => {
-    const hasChange = oldValue !== newValue;
-    if (!hasChange) return null;
-
-    return (
-        <div className="flex items-start gap-3 py-2 border-b border-slate-50 last:border-0 text-left">
-            {Icon && <Icon size={14} className="text-slate-400 mt-0.5 flex-shrink-0" />}
-            <div className="flex-1 min-w-0">
-                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">{label}</p>
-                <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs text-red-500 line-through truncate max-w-[150px]">{oldValue || "-"}</span>
-                    <ArrowRight size={12} className="text-slate-300 flex-shrink-0" />
-                    <span className="text-xs text-green-600 font-bold truncate max-w-[150px]">{newValue || "-"}</span>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const ConnectionApprovalPage: React.FC = () => {
+const DiscountApprovalPage: React.FC = () => {
     const {
         requests,
         loading,
@@ -63,18 +38,16 @@ const ConnectionApprovalPage: React.FC = () => {
         setPagination,
         setSelectedIds,
         resetFilters
-    } = useConnectionChangeRequestStore();
+    } = useDiscountRequestStore();
 
-    const { customers, fetchCustomers, fetchConnections } = useCustomerStore();
+    const { customers, fetchCustomers } = useCustomerStore();
     const { branches, fetchBranches, loading: branchLoading } = useBranchStore();
     const { areas, fetchAreas } = useAreaStore();
-    const { packages, fetchPackages } = usePackageStore();
 
-    // Modal state
     const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
-    const [showDetail, setShowDetail] = useState<ConnectionChangeRequest | null>(null);
+    const [showDetail, setShowDetail] = useState<DiscountRequest | null>(null);
     const [approvalData, setApprovalData] = useState({
-        status: "APPROVED" as "APPROVED" | "REJECTED",
+        status: "APPROVED",
         notes: ""
     });
 
@@ -86,7 +59,6 @@ const ConnectionApprovalPage: React.FC = () => {
         fetchCustomers(true);
         fetchBranches();
         fetchAreas();
-        fetchPackages();
     }, []);
 
     const handleSearch = () => {
@@ -99,42 +71,22 @@ const ConnectionApprovalPage: React.FC = () => {
         resetFilters();
     };
 
-    const getPacketName = (paketId?: number) => {
-        if (!paketId) return "-";
-        const paket = packages.find(p => p.id === paketId);
-        return paket?.namaPaket || "-";
-    };
-
-    const countChanges = (request: ConnectionChangeRequest) => {
-        let count = 0;
-        if (request.currentPppUsername !== request.newPppUsername) count++;
-        if (request.currentPppPassword !== request.newPppPassword) count++;
-        if (request.currentPppService !== request.newPppService) count++;
-        if (request.currentSecretMode !== request.newSecretMode) count++;
-        if (request.currentPaketId !== request.newPaketId) count++;
-        return count;
-    };
-
     const filteredRequests = useMemo(() => {
         return requests.filter(r => {
             if (r.status !== 'PENDING') return false;
 
-            // Required Branch Selection
             if (!appliedFilters.branchId || appliedFilters.branchId === "") return false;
 
             const customer = customers.find(c => c.id === r.customerId);
 
-            // Branch filter
-            if (appliedFilters.branchId !== "all") {
+            if (appliedFilters.branchId && appliedFilters.branchId !== "" && appliedFilters.branchId !== "all") {
                 if (customer?.area?.branchId?.toString() !== appliedFilters.branchId) return false;
             }
 
-            // Area filter
             if (appliedFilters.areaId && appliedFilters.areaId !== "" && appliedFilters.areaId !== "all") {
                 if (customer?.areaId.toString() !== appliedFilters.areaId) return false;
             }
 
-            // Search
             const searchTerm = appliedFilters.search.toLowerCase();
             if (searchTerm) {
                 const customerId = customer?.idPelanggan?.toLowerCase() || "";
@@ -151,26 +103,27 @@ const ConnectionApprovalPage: React.FC = () => {
         pagination.currentPage * pagination.pageSize
     );
 
-    const handleBatchAction = async () => {
-        if (selectedIds.length === 0) return;
-
-        const request = requests.find(r => r.id === selectedIds[0]);
-        if (!request) return;
+    const handleProcessApproval = async () => {
+        if (selectedIds.length !== 1) return;
 
         setShowLoading(true);
+        setIsApprovalModalOpen(false);
+
         try {
+            const idToProcess = selectedIds[0];
             if (approvalData.status === "APPROVED") {
-                await approveRequest(request.id, approvalData.notes, "Admin");
-                await fetchConnections(true);
+                await approveRequest(Number(idToProcess), approvalData.notes);
             } else {
-                await rejectRequest(request.id, approvalData.notes, "Admin");
+                await rejectRequest(Number(idToProcess), approvalData.notes);
             }
 
-            setIsApprovalModalOpen(false);
+            await fetchRequests(true);
+            await fetchCustomers(true);
+
             setShowMessage({
                 show: true,
                 title: "Berhasil",
-                message: `Request perubahan koneksi berhasil di-${approvalData.status === "APPROVED" ? "approve" : "reject"}.`,
+                message: `Request diskon berhasil di-${approvalData.status === "APPROVED" ? "approve" : "reject"}.`,
                 type: "success"
             });
             setSelectedIds([]);
@@ -190,25 +143,25 @@ const ConnectionApprovalPage: React.FC = () => {
     const columns = [
         {
             header: "TANGGAL",
-            render: (row: ConnectionChangeRequest) => <span className="text-sm">{format(new Date(row.createdAt), "dd/MM/yy HH:mm", { locale: id })}</span>
+            render: (row: DiscountRequest) => <span className="text-sm">{format(new Date(row.createdAt), "dd/MM/yy HH:mm", { locale: id })}</span>
         },
         {
             header: "ID PELANGGAN",
-            render: (row: ConnectionChangeRequest) => {
+            render: (row: DiscountRequest) => {
                 const customer = customers.find(c => c.id === row.customerId);
                 return <span className="text-sm font-mono text-primary font-bold">{customer?.idPelanggan || "-"}</span>;
             }
         },
         {
             header: "NAMA PELANGGAN",
-            render: (row: ConnectionChangeRequest) => {
+            render: (row: DiscountRequest) => {
                 const customer = customers.find(c => c.id === row.customerId);
                 return <span className="text-sm">{customer?.namaPelanggan || "-"}</span>;
             }
         },
         {
-            header: "PERUBAHAN",
-            render: (row: ConnectionChangeRequest) => (
+            header: "PERUBAHAN DISKON",
+            render: (row: DiscountRequest) => (
                 <div
                     onClick={(e) => {
                         e.stopPropagation();
@@ -217,8 +170,8 @@ const ConnectionApprovalPage: React.FC = () => {
                     className="flex justify-center"
                 >
                     <Badge variant="secondary" className="text-[10px] uppercase font-bold h-6 border-primary/20 bg-primary/5 text-primary cursor-pointer hover:bg-primary hover:text-white transition-all flex items-center gap-1.5 px-3">
-                        <Edit3 size={11} />
-                        {countChanges(row)} FIELD
+                        <Percent size={11} />
+                        LIHAT DISKON
                         <span className="opacity-40 text-[9px]">|</span>
                         <Eye size={12} />
                     </Badge>
@@ -227,13 +180,17 @@ const ConnectionApprovalPage: React.FC = () => {
         },
         {
             header: "PEMOHON",
-            render: (row: ConnectionChangeRequest) => <span className="text-sm font-semibold text-slate-700">{row.requestedBy || "-"}</span>
+            render: (row: DiscountRequest) => <span className="text-sm font-semibold text-slate-700">{row.requestedBy || "-"}</span>
         },
         {
             header: "CATATAN PEMOHON",
-            render: (row: ConnectionChangeRequest) => <span className="text-xs font-medium text-amber-700 max-w-[180px] truncate block" title={row.requestNote}>{row.requestNote || "-"}</span>
+            render: (row: DiscountRequest) => <span className="text-xs font-medium text-amber-700 max-w-[180px] truncate block" title={row.requestNote}>{row.requestNote || "-"}</span>
         }
     ];
+
+    const filteredAreas = areas.filter(a =>
+        filterValues.branchId && filterValues.branchId !== "all" ? a.branchId.toString() === filterValues.branchId : true
+    );
 
     const activeRequest = useMemo(() => {
         if (selectedIds.length === 1) {
@@ -242,20 +199,17 @@ const ConnectionApprovalPage: React.FC = () => {
         return null;
     }, [selectedIds, requests]);
 
-    const filteredAreas = areas.filter(a =>
-        filterValues.branchId && filterValues.branchId !== "all" ? a.branchId.toString() === filterValues.branchId : true
-    );
-
     return (
         <div className="space-y-4 pb-20">
             <CustomFilter
                 onSearch={handleSearch}
                 onReset={handleReset}
+                loading={loading}
                 filters={[
                     {
                         label: "Cabang",
-                        value: filterValues.branchId,
                         placeholder: "Pilih Cabang",
+                        value: filterValues.branchId,
                         type: "select",
                         options: [{ label: "Semua Cabang", value: "all" }, ...branches.map(b => ({ label: b.namaBranch, value: b.id.toString() }))],
                         loading: branchLoading,
@@ -278,13 +232,12 @@ const ConnectionApprovalPage: React.FC = () => {
                         onChange: (val: string) => setFilterValues({ search: val })
                     }
                 ]}
-            >
-            </CustomFilter>
+            />
 
             <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-1">
                 <CustomTable
                     data={paginatedRequests}
-                    columns={columns as any}
+                    columns={columns}
                     loading={loading}
                     emptyMessage={!appliedFilters.branchId ? "Pilih Cabang terlebih dahulu." : "Tidak ada request pending."}
                     enableSelection={true}
@@ -326,18 +279,16 @@ const ConnectionApprovalPage: React.FC = () => {
                 />
             </div>
 
-            {/* Approval Modal (Combined Detail and Form) */}
             <ModalDetail
-                isOpen={isApprovalModalOpen}
+                isOpen={isApprovalModalOpen && !!activeRequest}
                 onClose={() => setIsApprovalModalOpen(false)}
-                title="Persetujuan Perubahan Koneksi"
+                title="Persetujuan Perubahan Diskon"
                 maxWidth="md"
                 showFooter={false}
             >
                 <div className="space-y-6 py-2">
                     {activeRequest && (
                         <>
-                            {/* Comparison Section */}
                             <div className="space-y-4">
                                 <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
                                     <div className="grid grid-cols-2 gap-4">
@@ -352,46 +303,41 @@ const ConnectionApprovalPage: React.FC = () => {
                                     </div>
                                 </div>
 
-                                <div className="space-y-1 max-h-[300px] overflow-y-auto pr-2">
-                                    <ChangeItem label="PPP Username" icon={UserIcon} oldValue={activeRequest.currentPppUsername || ""} newValue={activeRequest.newPppUsername || ""} />
-                                    <ChangeItem label="PPP Password" icon={Lock} oldValue="********" newValue="********" />
-                                    <ChangeItem label="PPP Service" icon={Globe} oldValue={activeRequest.currentPppService || ""} newValue={activeRequest.newPppService || ""} />
-                                    <ChangeItem label="Secret Mode" icon={Activity} oldValue={activeRequest.currentSecretMode || ""} newValue={activeRequest.newSecretMode || ""} />
-                                    <ChangeItem label="Paket Layanan" oldValue={getPacketName(activeRequest.currentPaketId)} newValue={getPacketName(activeRequest.newPaketId)} />
+                                <div className="flex items-center justify-center gap-6 py-4">
+                                    <div className="text-center">
+                                        <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Diskon Saat Ini</p>
+                                        <p className="text-lg text-slate-500 font-bold line-through">Rp {Number(activeRequest.currentDiscount || 0).toLocaleString('id-ID')}</p>
+                                    </div>
+                                    <div className="text-slate-300">
+                                        <ArrowRight size={24} />
+                                    </div>
+                                    <div className="text-center">
+                                        <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold text-primary">Diskon Baru</p>
+                                        <p className="text-xl text-green-600 font-bold">Rp {Number(activeRequest.newDiscount || 0).toLocaleString('id-ID')}</p>
+                                    </div>
                                 </div>
 
                                 <div className="bg-amber-50 rounded p-3 text-xs text-amber-800 italic border border-amber-100">
-                                    <div className="flex items-center justify-between mb-1 not-italic">
-                                        <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider block">Catatan Pemohon:</span>
-                                        <span className="text-[10px] font-bold text-primary">Oleh: {activeRequest.requestedBy || "Sistem"}</span>
-                                    </div>
+                                    <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider block not-italic mb-1">Catatan Pemohon:</span>
                                     "{activeRequest.requestNote || "Tidak ada catatan"}"
                                 </div>
                             </div>
 
-                            {/* Approval Form Section */}
                             <div className="pt-4 border-t border-slate-100 space-y-4">
                                 <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
                                     <CheckCircle size={14} className="text-primary" />
                                     Form Persetujuan
                                 </h4>
 
-                                <div className="grid grid-cols-2 gap-3">
-                                    <button
-                                        onClick={() => setApprovalData({ ...approvalData, status: "APPROVED" })}
-                                        className={`flex items-center justify-center gap-2 h-12 rounded-lg border-2 transition-all font-bold text-sm ${approvalData.status === "APPROVED" ? "border-green-500 bg-green-50 text-green-700 shadow-sm" : "border-slate-100 text-slate-400 hover:border-slate-200"}`}
-                                    >
-                                        <CheckCircle size={18} />
-                                        APPROVE
-                                    </button>
-                                    <button
-                                        onClick={() => setApprovalData({ ...approvalData, status: "REJECTED" })}
-                                        className={`flex items-center justify-center gap-2 h-12 rounded-lg border-2 transition-all font-bold text-sm ${approvalData.status === "REJECTED" ? "border-red-500 bg-red-50 text-red-700 shadow-sm" : "border-slate-100 text-slate-400 hover:border-slate-200"}`}
-                                    >
-                                        <XCircle size={18} />
-                                        REJECT
-                                    </button>
-                                </div>
+                                <CustomSelect
+                                    label="Keputusan"
+                                    value={approvalData.status}
+                                    onChange={(val) => setApprovalData(prev => ({ ...prev, status: val }))}
+                                    options={[
+                                        { label: "Approve (Setujui)", value: "APPROVED" },
+                                        { label: "Reject (Tolak)", value: "REJECTED" }
+                                    ]}
+                                />
 
                                 <CustomTextArea
                                     label="Catatan Approval / Alasan"
@@ -404,18 +350,17 @@ const ConnectionApprovalPage: React.FC = () => {
 
                             <div className="flex justify-end gap-2 pt-4 border-t border-slate-100">
                                 <CustomButton variant="ghost" onClick={() => setIsApprovalModalOpen(false)}>Batal</CustomButton>
-                                <CustomButton variant="primary" onClick={handleBatchAction}>Simpan Keputusan</CustomButton>
+                                <CustomButton variant="primary" onClick={handleProcessApproval}>Simpan Keputusan</CustomButton>
                             </div>
                         </>
                     )}
                 </div>
             </ModalDetail>
 
-            {/* View Detail Modal Only */}
             <ModalDetail
                 isOpen={!!showDetail}
                 onClose={() => setShowDetail(null)}
-                title="Detail Perubahan Koneksi"
+                title="Detail Perubahan Diskon"
                 maxWidth="md"
                 cancelLabel="Tutup"
             >
@@ -434,19 +379,22 @@ const ConnectionApprovalPage: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="space-y-1 max-h-[400px] overflow-y-auto pr-2">
-                            <ChangeItem label="PPP Username" icon={UserIcon} oldValue={showDetail.currentPppUsername || ""} newValue={showDetail.newPppUsername || ""} />
-                            <ChangeItem label="PPP Password" icon={Lock} oldValue="********" newValue="********" />
-                            <ChangeItem label="PPP Service" icon={Globe} oldValue={showDetail.currentPppService || ""} newValue={showDetail.newPppService || ""} />
-                            <ChangeItem label="Secret Mode" icon={Activity} oldValue={showDetail.currentSecretMode || ""} newValue={showDetail.newSecretMode || ""} />
-                            <ChangeItem label="Paket Layanan" oldValue={getPacketName(showDetail.currentPaketId)} newValue={getPacketName(showDetail.newPaketId)} />
+                        <div className="flex items-center justify-center gap-6 py-4">
+                            <div className="text-center">
+                                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold">Diskon Saat Ini</p>
+                                <p className="text-lg text-slate-500 font-bold line-through">Rp {Number(showDetail.currentDiscount || 0).toLocaleString('id-ID')}</p>
+                            </div>
+                            <div className="text-slate-300">
+                                <ArrowRight size={24} />
+                            </div>
+                            <div className="text-center">
+                                <p className="text-[10px] text-slate-400 uppercase tracking-wider font-bold text-primary">Diskon Baru</p>
+                                <p className="text-xl text-green-600 font-bold">Rp {Number(showDetail.newDiscount || 0).toLocaleString('id-ID')}</p>
+                            </div>
                         </div>
 
                         <div className="pt-4 mt-4 border-t border-slate-100">
-                            <div className="flex items-center justify-between mb-1">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Catatan Pemohon:</span>
-                                <span className="text-[10px] font-bold text-primary">Oleh: {showDetail.requestedBy || "Sistem"}</span>
-                            </div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Catatan Pemohon:</span>
                             <div className="bg-amber-50 rounded p-3 text-xs text-amber-800 italic border border-amber-100">
                                 "{showDetail.requestNote || "Tidak ada catatan"}"
                             </div>
@@ -455,17 +403,14 @@ const ConnectionApprovalPage: React.FC = () => {
                 )}
             </ModalDetail>
 
-            <ModalLoading isOpen={showLoading} message="Memproses data..." />
-
+            <ModalLoading isOpen={showLoading} message="Sedang memproses..." />
             <ModalMessage
                 isOpen={showMessage.show}
-                onClose={() => setShowMessage({ ...showMessage, show: false })}
-                title={showMessage.title}
-                message={showMessage.message}
-                type={showMessage.type}
+                onClose={() => setShowMessage(prev => ({ ...prev, show: false }))}
+                {...showMessage}
             />
         </div>
     );
 };
 
-export default ConnectionApprovalPage;
+export default DiscountApprovalPage;

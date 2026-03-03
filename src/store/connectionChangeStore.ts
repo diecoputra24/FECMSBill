@@ -15,6 +15,7 @@ interface ConnectionChangeFilterState {
         pppPassword: string;
         pppService: string;
         secretMode: string;
+        requestNote: string;
     } | null;
 
     setFilterValues: (values: ConnectionChangeFilterState['filterValues']) => void;

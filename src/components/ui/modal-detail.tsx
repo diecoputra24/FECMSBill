@@ -29,6 +29,7 @@ interface ModalDetailProps {
     maxWidth?: "sm" | "md" | "lg" | "full";
     variant?: "primary" | "danger" | "success" | "warning";
     children?: React.ReactNode;
+    showFooter?: boolean;
 }
 
 export const ModalDetail: React.FC<ModalDetailProps> = ({
@@ -44,6 +45,7 @@ export const ModalDetail: React.FC<ModalDetailProps> = ({
     maxWidth = "md",
     variant = "primary",
     children,
+    showFooter = true,
 }) => {
     if (!isOpen) return null;
 
@@ -89,8 +91,11 @@ export const ModalDetail: React.FC<ModalDetailProps> = ({
                 maxWidthClass
             )}>
                 {/* Header */}
-                <div className="px-6 py-4 bg-white shrink-0">
+                <div className="px-6 py-4 bg-white shrink-0 border-b border-slate-50 flex items-center justify-between">
                     <h3 className="text-lg font-bold text-slate-800 tracking-tight">{title}</h3>
+                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors md:hidden">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
                 </div>
 
                 {/* Content */}
@@ -140,32 +145,34 @@ export const ModalDetail: React.FC<ModalDetailProps> = ({
                 </div>
 
                 {/* Footer */}
-                <div className="px-5 py-3 border-t border-slate-100 bg-white flex justify-end gap-2 shrink-0">
-                    {cancelLabel && (
-                        <CustomButton
-                            type="button"
-                            variant="outline"
-                            className={cn("h-8 px-8 font-bold text-[10px]", variantColors.cancelBorder)}
-                            onClick={onClose}
-                            disabled={loading}
-                            size="sm"
-                        >
-                            {cancelLabel}
-                        </CustomButton>
-                    )}
-                    {confirmLabel && onConfirm && (
-                        <CustomButton
-                            type="button"
-                            variant={variant === "danger" ? "danger" : "primary"}
-                            className="h-8 px-8 font-bold shadow-sm text-[10px]"
-                            disabled={loading}
-                            onClick={onConfirm}
-                            size="sm"
-                        >
-                            {loading ? "Memproses..." : confirmLabel}
-                        </CustomButton>
-                    )}
-                </div>
+                {showFooter && (
+                    <div className="px-5 py-3 border-t border-slate-100 bg-white flex justify-end gap-2 shrink-0">
+                        {cancelLabel && (
+                            <CustomButton
+                                type="button"
+                                variant="outline"
+                                className={cn("h-8 px-8 font-bold text-[10px]", variantColors.cancelBorder)}
+                                onClick={onClose}
+                                disabled={loading}
+                                size="sm"
+                            >
+                                {cancelLabel}
+                            </CustomButton>
+                        )}
+                        {confirmLabel && onConfirm && (
+                            <CustomButton
+                                type="button"
+                                variant={variant === "danger" ? "danger" : "primary"}
+                                className="h-8 px-8 font-bold shadow-sm text-[10px]"
+                                disabled={loading}
+                                onClick={onConfirm}
+                                size="sm"
+                            >
+                                {loading ? "Memproses..." : confirmLabel}
+                            </CustomButton>
+                        )}
+                    </div>
+                )}
             </div>
         </div>,
         document.body

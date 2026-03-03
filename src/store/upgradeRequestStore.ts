@@ -16,10 +16,29 @@ export interface UpgradeRequest {
     updatedAt: string;
 }
 
+interface FilterValues {
+    search: string;
+    branchId: string;
+    areaId: string;
+    status: string;
+}
+
 interface UpgradeRequestState {
     requests: UpgradeRequest[];
     loading: boolean;
     error: string | null;
+
+    // List states (Approval)
+    filterValues: FilterValues;
+    appliedFilters: FilterValues;
+    pagination: { currentPage: number; pageSize: number };
+
+    // History states
+    historyFilterValues: FilterValues;
+    appliedHistoryFilters: FilterValues;
+    historyPagination: { currentPage: number; pageSize: number };
+
+    selectedIds: (string | number)[];
 
     fetchRequests: (force?: boolean) => Promise<void>;
     fetchPendingRequests: () => Promise<void>;
@@ -27,12 +46,79 @@ interface UpgradeRequestState {
     approveRequest: (id: number, approvalNote?: string, approvedBy?: string) => Promise<void>;
     rejectRequest: (id: number, approvalNote?: string, approvedBy?: string) => Promise<void>;
     deleteRequest: (id: number) => Promise<void>;
+
+    // List actions
+    setFilterValues: (values: Partial<FilterValues>) => void;
+    setAppliedFilters: (values: FilterValues) => void;
+    setPagination: (values: Partial<{ currentPage: number; pageSize: number }>) => void;
+
+    // History actions
+    setHistoryFilterValues: (values: Partial<FilterValues>) => void;
+    setAppliedHistoryFilters: (values: FilterValues) => void;
+    setHistoryPagination: (values: Partial<{ currentPage: number; pageSize: number }>) => void;
+
+    setSelectedIds: (ids: (string | number)[]) => void;
+    resetFilters: () => void;
+    resetHistoryFilters: () => void;
 }
+
+const initialFilters: FilterValues = {
+    search: "",
+    branchId: "",
+    areaId: "",
+    status: "PENDING"
+};
+
+const initialHistoryFilters: FilterValues = {
+    search: "",
+    branchId: "",
+    areaId: "",
+    status: "all"
+};
 
 export const useUpgradeRequestStore = create<UpgradeRequestState>((set, get) => ({
     requests: [],
     loading: false,
     error: null,
+
+    filterValues: initialFilters,
+    appliedFilters: initialFilters,
+    pagination: { currentPage: 1, pageSize: 10 },
+
+    historyFilterValues: initialHistoryFilters,
+    appliedHistoryFilters: initialHistoryFilters,
+    historyPagination: { currentPage: 1, pageSize: 10 },
+
+    selectedIds: [],
+
+    setFilterValues: (values) => set((state) => ({ filterValues: { ...state.filterValues, ...values } })),
+    setAppliedFilters: (values) => set({ appliedFilters: values }),
+    setPagination: (values) => set((state) => ({ pagination: { ...state.pagination, ...values } })),
+
+    setHistoryFilterValues: (values) => set((state) => ({ historyFilterValues: { ...state.historyFilterValues, ...values } })),
+    setAppliedHistoryFilters: (values) => set({ appliedHistoryFilters: values }),
+    setHistoryPagination: (values) => set((state) => ({ historyPagination: { ...state.historyPagination, ...values } })),
+
+    setSelectedIds: (ids) => set({ selectedIds: ids }),
+
+    resetFilters: () => set({
+        filterValues: initialFilters,
+        appliedFilters: initialFilters,
+        pagination: { currentPage: 1, pageSize: 10 },
+        selectedIds: [],
+        requests: [],
+        loading: false,
+        error: null
+    }),
+
+    resetHistoryFilters: () => set({
+        historyFilterValues: initialHistoryFilters,
+        appliedHistoryFilters: initialHistoryFilters,
+        historyPagination: { currentPage: 1, pageSize: 10 },
+        requests: [],
+        loading: false,
+        error: null
+    }),
 
     fetchRequests: async (force = false) => {
         if (!force && get().requests.length > 0) return;

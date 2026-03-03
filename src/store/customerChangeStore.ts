@@ -27,6 +27,7 @@ interface CustomerChangeFilterState {
     setIsInfoCollapsed: (collapsed: boolean) => void;
     setFormData: (data: CustomerChangeFilterState['formData']) => void;
     resetFormData: () => void;
+    resetState: () => void;
 }
 
 export const useCustomerChangeStore = create<CustomerChangeFilterState>((set) => ({
@@ -44,4 +45,14 @@ export const useCustomerChangeStore = create<CustomerChangeFilterState>((set) =>
     setIsInfoCollapsed: (collapsed) => set({ isInfoCollapsed: collapsed }),
     setFormData: (data) => set({ formData: data }),
     resetFormData: () => set({ formData: null }),
+    resetState: () => set({
+        filterValues: {
+            branchId: '',
+            searchType: 'idPelanggan',
+            searchValue: '',
+        },
+        selectedCustomer: null,
+        isInfoCollapsed: false,
+        formData: null,
+    }),
 }));

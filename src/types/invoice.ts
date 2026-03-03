@@ -32,7 +32,7 @@ export interface Transaction {
     referenceNo: string;
     amountPaid: string | number;
     paymentMethod: string;
-    adminId: number;
+    adminId: string;
     customerId?: number;
     createdAt: string;
 
@@ -48,7 +48,7 @@ export interface PromiseToPay {
     promiseDate: string;
     note?: string;
     status: 'WAITING' | 'PAID' | 'BROKEN' | 'CANCELLED';
-    adminId: number;
+    adminId: string;
     createdAt: string;
     updatedAt: string;
 

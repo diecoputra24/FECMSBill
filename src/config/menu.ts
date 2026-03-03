@@ -29,6 +29,9 @@ import {
     CheckCircle,
     Edit3,
     Shield,
+    Ticket,
+    AlertOctagon,
+    MessageCircle,
     type LucideIcon
 } from "lucide-react";
 
@@ -76,6 +79,7 @@ export const menuItems: MenuItem[] = [
                 children: [
                     { id: "upgrade-request", label: "Request Upgrade / Downgrade", icon: ClipboardList, href: "/pelanggan/upgrade", permission: "customer.upgrade" },
                     { id: "upgrade-approval", label: "Approval Upgrade / Downgrade", icon: CheckCircle, href: "/pelanggan/upgrade/approval", permission: "customer.upgrade" },
+                    { id: "upgrade-history", label: "List Approval Upgrade / Downgrade", icon: List, href: "/pelanggan/upgrade/history", permission: "customer.upgrade" },
                 ]
             },
             {
@@ -86,6 +90,7 @@ export const menuItems: MenuItem[] = [
                 children: [
                     { id: "change-request", label: "Request Perubahan Data", icon: ClipboardList, href: "/pelanggan/change", permission: "customer.change" },
                     { id: "change-approval", label: "Approval Perubahan Data", icon: CheckCircle, href: "/pelanggan/change/approval", permission: "customer.change" },
+                    { id: "change-history", label: "List Approval Perubahan Data", icon: List, href: "/pelanggan/change/history", permission: "customer.change" },
                 ]
             },
             {
@@ -96,6 +101,7 @@ export const menuItems: MenuItem[] = [
                 children: [
                     { id: "status-request", label: "Request Perubahan Status", icon: ClipboardList, href: "/pelanggan/status", permission: "customer.status" },
                     { id: "status-approval", label: "Approval Perubahan Status", icon: CheckCircle, href: "/pelanggan/status/approval", permission: "customer.status" },
+                    { id: "status-history", label: "List Approval Perubahan Status", icon: List, href: "/pelanggan/status/history", permission: "customer.status" },
                 ]
             },
             {
@@ -106,6 +112,7 @@ export const menuItems: MenuItem[] = [
                 children: [
                     { id: "connection-request", label: "Request Perubahan Koneksi", icon: ClipboardList, href: "/pelanggan/connection", permission: "customer.connection" },
                     { id: "connection-approval", label: "Approval Perubahan Koneksi", icon: CheckCircle, href: "/pelanggan/connection/approval", permission: "customer.connection" },
+                    { id: "connection-history", label: "List Approval Perubahan Koneksi", icon: List, href: "/pelanggan/connection/history", permission: "customer.connection" },
                 ]
             },
         ]
@@ -128,10 +135,9 @@ export const menuItems: MenuItem[] = [
         icon: Presentation,
         permission: "eis.view",
         children: [
-            { id: "eis-summary", label: "Dashboard Ringkasan", icon: LayoutDashboard, href: "/eis/summary", permission: "eis.summary" },
-            { id: "eis-revenue", label: "Analisis Pendapatan", icon: DollarSign, href: "/eis/revenue", permission: "eis.revenue" },
             { id: "eis-growth", label: "Statistik Pelanggan", icon: TrendingUp, href: "/eis/growth", permission: "eis.growth" },
-            { id: "eis-operational", label: "Kinerja Operasional", icon: Activity, href: "/eis/operational", permission: "eis.operational" },
+            { id: "eis-revenue", label: "Analisis Pendapatan", icon: DollarSign, href: "/eis/revenue", permission: "eis.revenue" },
+            { id: "eis-ticketing", label: "Dashboard Ticketing", icon: LayoutDashboard, href: "/eis/ticketing", permission: "eis.summary" },
         ]
     },
     {
@@ -146,7 +152,7 @@ export const menuItems: MenuItem[] = [
                 icon: Package,
                 permission: "service.package.view",
                 children: [
-                    { id: "paket-list", label: "Daftar Paket", icon: List, href: "/layanan", permission: "service.package.view" },
+                    { id: "paket-list", label: "List Paket", icon: List, href: "/layanan", permission: "service.package.view" },
                     { id: "paket-create", label: "Tambah Paket", icon: Package, href: "/layanan/create", permission: "service.package.create" },
                 ]
             },
@@ -156,7 +162,7 @@ export const menuItems: MenuItem[] = [
                 icon: List,
                 permission: "service.addon.view",
                 children: [
-                    { id: "addon-list", label: "Daftar Addon", icon: List, href: "/layanan/addon", permission: "service.addon.view" },
+                    { id: "addon-list", label: "List Addon", icon: List, href: "/layanan/addon", permission: "service.addon.view" },
                     { id: "addon-create", label: "Tambah Addon", icon: Package, href: "/layanan/addon/create", permission: "service.addon.create" },
                 ]
             },
@@ -166,8 +172,18 @@ export const menuItems: MenuItem[] = [
                 icon: Percent,
                 permission: "service.discount.view",
                 children: [
-                    { id: "diskon-list", label: "Daftar Diskon", icon: List, href: "/layanan/diskon", permission: "service.discount.view" },
-                    { id: "diskon-create", label: "Tambah Diskon", icon: Package, href: "/layanan/diskon/create", permission: "service.discount.create" },
+                    { id: "diskon-list", label: "List Diskon", icon: List, href: "/layanan/diskon", permission: "service.discount.view" },
+                    {
+                        id: "perubahan-diskon",
+                        label: "Perubahan Diskon",
+                        icon: Edit3,
+                        permission: "service.discount.view",
+                        children: [
+                            { id: "diskon-request", label: "Request Perubahan Diskon", icon: ClipboardList, href: "/layanan/diskon/request", permission: "service.discount.view" },
+                            { id: "diskon-approval", label: "Approval Perubahan Diskon", icon: CheckCircle, href: "/layanan/diskon/approval", permission: "service.discount.view" },
+                            { id: "diskon-history", label: "List Approval Perubahan Diskon", icon: List, href: "/layanan/diskon/history", permission: "service.discount.view" },
+                        ]
+                    },
                 ]
             },
         ]
@@ -180,6 +196,35 @@ export const menuItems: MenuItem[] = [
         children: [
             { id: "mapping-calculator", label: "Kalkulator Redaman", icon: Calculator, href: "/mapping/calculator", permission: "mapping.calculator" },
             { id: "mapping-network", label: "Visual Mapping", icon: Map, href: "/mapping/network", permission: "mapping.network" },
+        ]
+    },
+
+    {
+        id: "ticketing",
+        label: "Ticketing",
+        icon: Ticket,
+        permission: "ticketing.view",
+        children: [
+            {
+                id: "incident",
+                label: "Incident",
+                icon: AlertOctagon,
+                permission: "ticketing.incident.view",
+                children: [
+                    { id: "incident-list", label: "List Incident", icon: List, href: "/ticketing/incident", permission: "ticketing.incident.view" },
+                    { id: "incident-request", label: "Request Incident", icon: ClipboardList, href: "/ticketing/incident/request", permission: "ticketing.incident.create" },
+                ]
+            },
+            {
+                id: "complaint",
+                label: "Complaint",
+                icon: MessageCircle,
+                permission: "ticketing.complaint.view",
+                children: [
+                    { id: "complaint-list", label: "List Complaint", icon: List, href: "/ticketing/complaint", permission: "ticketing.complaint.view" },
+                    { id: "complaint-request", label: "Request Complaint", icon: ClipboardList, href: "/ticketing/complaint/request", permission: "ticketing.complaint.create" },
+                ]
+            },
         ]
     },
 

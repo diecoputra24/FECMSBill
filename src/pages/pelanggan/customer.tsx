@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
 import { useNavigate } from "react-router-dom";
 
 import { createPortal } from "react-dom";
@@ -541,6 +543,86 @@ const CustomerPage: React.FC = () => {
         setIsDetailOpen(true);
     };
 
+    const handleExportExcel = async () => {
+        if (!sortedCustomers.length) {
+            setMessageConfig({ type: 'error', title: 'Perhatian', message: 'Tidak ada data untuk diexport.' });
+            setIsMessageModalOpen(true);
+            return;
+        }
+
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Data Pelanggan');
+
+        const rows = sortedCustomers.map((row, index) => {
+            const conn = getConnection(row.id);
+            const koord = row.latitude && row.longitude ? `${row.latitude}, ${row.longitude}` : "N/A";
+            const telepon = row.teleponPelanggan ? String(row.teleponPelanggan) : "-";
+            const identitas = row.identitasPelanggan ? String(row.identitasPelanggan) : "-";
+            const tglAktif = row.tanggalAktif ? new Date(row.tanggalAktif).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : "-";
+            const tglAkhir = row.tanggalAkhir ? new Date(row.tanggalAkhir).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : "-";
+
+            return [
+                index + 1,
+                row.idPelanggan,
+                identitas,
+                row.namaPelanggan,
+                telepon,
+                conn?.paket?.namaPaket || "-",
+                row.area?.namaArea || "-",
+                row.alamatPelanggan || "-",
+                koord,
+                row.diskon || 0,
+                tglAktif,
+                tglAkhir,
+                row.statusPelanggan
+            ];
+        });
+
+        worksheet.addTable({
+            name: 'DataPelanggan',
+            ref: 'A1',
+            headerRow: true,
+            totalsRow: false,
+            style: {
+                theme: 'TableStyleMedium2',
+                showRowStripes: true,
+            },
+            columns: [
+                { name: 'No', filterButton: true },
+                { name: 'ID Pelanggan', filterButton: true },
+                { name: 'Identitas', filterButton: true },
+                { name: 'Nama', filterButton: true },
+                { name: 'Telepon', filterButton: true },
+                { name: 'Paket', filterButton: true },
+                { name: 'Area', filterButton: true },
+                { name: 'Alamat', filterButton: true },
+                { name: 'Koord', filterButton: false },
+                { name: 'Diskon', filterButton: true },
+                { name: 'Tgl Aktif', filterButton: true },
+                { name: 'Tgl Akhir', filterButton: true },
+                { name: 'Status', filterButton: true }
+            ],
+            rows: rows,
+        });
+
+        // Auto-fit columns
+        worksheet.columns.forEach(column => {
+            if (column.values) {
+                let maxLength = 0;
+                column.values.forEach(v => {
+                    const columnLength = v ? v.toString().length : 0;
+                    if (columnLength > maxLength) {
+                        maxLength = columnLength;
+                    }
+                });
+                column.width = maxLength < 10 ? 10 : maxLength + 2;
+            }
+        });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const timestamp = new Date().toISOString().replace(/[:T]/g, '-').split('.')[0];
+        saveAs(new Blob([buffer]), `Data_Pelanggan_${timestamp}.xlsx`);
+    };
 
 
     return (
@@ -548,7 +630,7 @@ const CustomerPage: React.FC = () => {
             <CustomFilter
                 onSearch={handleSearch}
                 onReset={handleReset}
-                onPrint={() => console.log("Printing...")}
+                onPrint={handleExportExcel}
                 loading={loading}
                 filters={[
                     {
@@ -759,12 +841,12 @@ const CustomerPage: React.FC = () => {
                                                     >
                                                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
                                                         Buka di Google Maps
-                                                    </a>
+                                                    </a >
                                                 )}
-                                            </div>
+                                            </div >
 
                                             {/* Kolom Kanan: Alamat */}
-                                            <div className="space-y-1">
+                                            < div className="space-y-1" >
                                                 <div className="flex items-center justify-between mb-1">
                                                     <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
                                                         Alamat Pemasangan <span className="text-red-500">*</span>
@@ -785,18 +867,20 @@ const CustomerPage: React.FC = () => {
                                                     className={`w-full min-h-[200px] px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all resize-none ${createFormData.autoAddress || isAddressSyncing ? "bg-slate-50 text-slate-500 italic" : ""}`}
                                                 />
 
-                                                {createFormData.autoAddress && (
-                                                    <p className="text-[10px] text-amber-600 italic">
-                                                        ✓ Alamat akan diisi otomatis saat Anda memilih lokasi di peta.
-                                                    </p>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                                                {
+                                                    createFormData.autoAddress && (
+                                                        <p className="text-[10px] text-amber-600 italic">
+                                                            ✓ Alamat akan diisi otomatis saat Anda memilih lokasi di peta.
+                                                        </p>
+                                                    )
+                                                }
+                                            </div >
+                                        </div >
+                                    </div >
+                                </div >
 
                                 {/* Section 2: Data Teknis */}
-                                <div className="space-y-6">
+                                < div className="space-y-6" >
                                     <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 border-b pb-2">Data Teknis & Lokasi</h3>
                                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                         <CustomSelect label="Cabang" required value={createFormData.branchId} onChange={(val) => setCreateFormData({ branchId: val, areaId: "", odpId: "", odpPortId: "" })} options={branches.map(b => ({ label: b.namaBranch, value: b.id.toString() }))} />
@@ -804,10 +888,10 @@ const CustomerPage: React.FC = () => {
                                         <CustomSelect label="ODP" value={createFormData.odpId} onChange={(val) => setCreateFormData({ odpId: val, odpPortId: "" })} options={formFilteredOdps.map(o => ({ label: o.namaOdp, value: o.id.toString() }))} placeholder={createFormData.areaId ? "Pilih ODP (Opsional)" : "Pilih Area Dahulu"} disabled={!createFormData.areaId} />
                                         <CustomSelect label="Port ODP" value={createFormData.odpPortId} onChange={(val) => setCreateFormData({ odpPortId: val })} options={PORT_OPTIONS} placeholder="Pilih Port (Opsional)" />
                                     </div>
-                                </div>
+                                </div >
 
                                 {/* Section 3: Layanan */}
-                                <div className="space-y-6">
+                                < div className="space-y-6" >
                                     <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 border-b pb-2">Layanan & Akun PPPoE</h3>
 
                                     {/* Paket Selection */}
@@ -855,91 +939,95 @@ const CustomerPage: React.FC = () => {
                                     </div>
 
                                     {/* PPP Fields - Only show if not NONE */}
-                                    {createFormData.secretMode !== 'NONE' && (
-                                        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 p-4 bg-slate-50 rounded-lg border border-slate-100">
-                                            {createFormData.secretMode === 'EXISTING' ? (
-                                                <>
-                                                    <div className="space-y-1">
-                                                        <label className="text-[11px] font-bold text-slate-600 uppercase tracking-tighter ml-1 block">
-                                                            Username PPPoE <span className="text-red-500">*</span>
-                                                        </label>
-                                                        <div className="flex gap-2">
-                                                            <input
-                                                                type="text"
-                                                                className="flex-1 h-10 bg-slate-50 border border-slate-200 rounded-lg px-3 text-sm font-medium text-slate-500 outline-none cursor-not-allowed"
-                                                                value={createFormData.pppUsername}
-                                                                onChange={(e) => setCreateFormData({ pppUsername: e.target.value })}
-                                                                placeholder="Pilih username via search..."
-                                                                required
-                                                                readOnly
-                                                            />
-                                                            <button
-                                                                type="button"
-                                                                className="h-10 px-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-1"
-                                                                title="Cari secret yang tersedia di MikroTik"
-                                                                onClick={fetchAvailableSecrets}
-                                                            >
-                                                                <Search size={16} />
-                                                            </button>
+                                    {
+                                        createFormData.secretMode !== 'NONE' && (
+                                            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 p-4 bg-slate-50 rounded-lg border border-slate-100">
+                                                {createFormData.secretMode === 'EXISTING' ? (
+                                                    <>
+                                                        <div className="space-y-1">
+                                                            <label className="text-[11px] font-bold text-slate-600 uppercase tracking-tighter ml-1 block">
+                                                                Username PPPoE <span className="text-red-500">*</span>
+                                                            </label>
+                                                            <div className="flex gap-2">
+                                                                <input
+                                                                    type="text"
+                                                                    className="flex-1 h-10 bg-slate-50 border border-slate-200 rounded-lg px-3 text-sm font-medium text-slate-500 outline-none cursor-not-allowed"
+                                                                    value={createFormData.pppUsername}
+                                                                    onChange={(e) => setCreateFormData({ pppUsername: e.target.value })}
+                                                                    placeholder="Pilih username via search..."
+                                                                    required
+                                                                    readOnly
+                                                                />
+                                                                <button
+                                                                    type="button"
+                                                                    className="h-10 px-3 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-1"
+                                                                    title="Cari secret yang tersedia di MikroTik"
+                                                                    onClick={fetchAvailableSecrets}
+                                                                >
+                                                                    <Search size={16} />
+                                                                </button>
+                                                            </div>
+                                                            <p className="text-[10px] text-slate-400 ml-1">Klik tombol search untuk memilih dari daftar secret yang tersedia</p>
                                                         </div>
-                                                        <p className="text-[10px] text-slate-400 ml-1">Klik tombol search untuk memilih dari daftar secret yang tersedia</p>
-                                                    </div>
-                                                    <CustomInput
-                                                        label="Password PPPoE"
-                                                        required
-                                                        value={createFormData.pppPassword}
-                                                        onChange={(e) => setCreateFormData({ pppPassword: e.target.value })}
-                                                        placeholder="Password akan terisi otomatis"
-                                                        disabled={createFormData.secretMode === 'EXISTING'}
-                                                    />
-                                                    <CustomSelect
-                                                        label="Service"
-                                                        value={createFormData.pppService}
-                                                        onChange={(val) => setCreateFormData({ pppService: val })}
-                                                        disabled={createFormData.secretMode === 'EXISTING'}
-                                                        options={[
-                                                            { label: 'PPPoE', value: 'pppoe' },
-                                                            { label: 'Any', value: 'any' },
-                                                            { label: 'L2TP', value: 'l2tp' },
-                                                            { label: 'PPTP', value: 'pptp' },
-                                                            { label: 'OVPN', value: 'ovpn' },
-                                                        ]}
-                                                    />
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <CustomInput label="Username PPPoE" required value={createFormData.pppUsername} onChange={(e) => setCreateFormData({ pppUsername: e.target.value })} placeholder="Masukkan username baru" />
-                                                    <CustomInput label="Password PPPoE" required value={createFormData.pppPassword} onChange={(e) => setCreateFormData({ pppPassword: e.target.value })} placeholder="Masukkan password" />
-                                                    <CustomSelect
-                                                        label="Service"
-                                                        value={createFormData.pppService}
-                                                        onChange={(val) => setCreateFormData({ pppService: val })}
-                                                        options={[
-                                                            { label: 'PPPoE', value: 'pppoe' },
-                                                            { label: 'Any', value: 'any' },
-                                                            { label: 'L2TP', value: 'l2tp' },
-                                                            { label: 'PPTP', value: 'pptp' },
-                                                            { label: 'OVPN', value: 'ovpn' },
-                                                        ]}
-                                                    />
-                                                </>
-                                            )}
-                                        </div>
-                                    )}
+                                                        <CustomInput
+                                                            label="Password PPPoE"
+                                                            required
+                                                            value={createFormData.pppPassword}
+                                                            onChange={(e) => setCreateFormData({ pppPassword: e.target.value })}
+                                                            placeholder="Password akan terisi otomatis"
+                                                            disabled={createFormData.secretMode === 'EXISTING'}
+                                                        />
+                                                        <CustomSelect
+                                                            label="Service"
+                                                            value={createFormData.pppService}
+                                                            onChange={(val) => setCreateFormData({ pppService: val })}
+                                                            disabled={createFormData.secretMode === 'EXISTING'}
+                                                            options={[
+                                                                { label: 'PPPoE', value: 'pppoe' },
+                                                                { label: 'Any', value: 'any' },
+                                                                { label: 'L2TP', value: 'l2tp' },
+                                                                { label: 'PPTP', value: 'pptp' },
+                                                                { label: 'OVPN', value: 'ovpn' },
+                                                            ]}
+                                                        />
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <CustomInput label="Username PPPoE" required value={createFormData.pppUsername} onChange={(e) => setCreateFormData({ pppUsername: e.target.value })} placeholder="Masukkan username baru" />
+                                                        <CustomInput label="Password PPPoE" required value={createFormData.pppPassword} onChange={(e) => setCreateFormData({ pppPassword: e.target.value })} placeholder="Masukkan password" />
+                                                        <CustomSelect
+                                                            label="Service"
+                                                            value={createFormData.pppService}
+                                                            onChange={(val) => setCreateFormData({ pppService: val })}
+                                                            options={[
+                                                                { label: 'PPPoE', value: 'pppoe' },
+                                                                { label: 'Any', value: 'any' },
+                                                                { label: 'L2TP', value: 'l2tp' },
+                                                                { label: 'PPTP', value: 'pptp' },
+                                                                { label: 'OVPN', value: 'ovpn' },
+                                                            ]}
+                                                        />
+                                                    </>
+                                                )}
+                                            </div>
+                                        )
+                                    }
 
                                     {/* Info for NONE mode */}
-                                    {createFormData.secretMode === 'NONE' && (
-                                        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                                            <p className="text-sm text-amber-700 font-medium">
-                                                ⚠️ Mode Tanpa Secret: Pelanggan ini tidak akan memiliki akun PPPoE di MikroTik.
-                                                Cocok untuk pelanggan yang menggunakan koneksi lain (static IP, DHCP, dll).
-                                            </p>
-                                        </div>
-                                    )}
-                                </div>
+                                    {
+                                        createFormData.secretMode === 'NONE' && (
+                                            <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                                                <p className="text-sm text-amber-700 font-medium">
+                                                    ⚠️ Mode Tanpa Secret: Pelanggan ini tidak akan memiliki akun PPPoE di MikroTik.
+                                                    Cocok untuk pelanggan yang menggunakan koneksi lain (static IP, DHCP, dll).
+                                                </p>
+                                            </div>
+                                        )
+                                    }
+                                </div >
 
                                 {/* Section 4: PPN & Pajak */}
-                                <div className="space-y-6">
+                                < div className="space-y-6" >
                                     <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 border-b pb-2">PPN & Pajak</h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50/50 p-6 rounded-xl border border-slate-100">
                                         <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-slate-200 shadow-sm">
@@ -963,10 +1051,10 @@ const CustomerPage: React.FC = () => {
                                             />
                                         )}
                                     </div>
-                                </div>
+                                </div >
 
                                 {/* Section 5: Diskon & Ringkasan */}
-                                <div className="space-y-6">
+                                < div className="space-y-6" >
                                     <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 border-b pb-2">Ringkasan Biaya</h3>
                                     <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
                                         <CustomInput label="Subtotal" value={`Rp ${(hargaPaket + totalAddonPrice).toLocaleString('id-ID')}`} disabled className="bg-slate-100 text-slate-600 font-bold" />
@@ -974,26 +1062,26 @@ const CustomerPage: React.FC = () => {
                                         <CustomInput label="PPN" value={createFormData.useTax ? `Rp ${taxAmount.toLocaleString('id-ID')}` : "Rp 0"} disabled className="bg-slate-100 text-slate-600 font-bold" />
                                         <CustomInput label="Total Bayar" value={`Rp ${totalBayarWithTax.toLocaleString('id-ID')}`} disabled className="bg-primary/5 text-primary font-black border-primary/20" />
                                     </div>
-                                </div>
+                                </div >
 
                                 {/* Section 5: Tanggal */}
-                                <div className="space-y-6">
+                                < div className="space-y-6" >
                                     <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 border-b pb-2">Informasi Penagihan</h3>
                                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                         <CustomDatePicker label="Tanggal Aktif" value={createFormData.tanggalAktif} onChange={(val) => setCreateFormData({ tanggalAktif: val })} />
                                         <CustomDatePicker label="Tanggal Akhir / Jatuh Tempo" value={createFormData.tanggalAkhir} onChange={(val) => setCreateFormData({ tanggalAkhir: val, tanggalToleransi: val })} />
                                     </div>
-                                </div>
-                            </form>
-                        </div>
+                                </div >
+                            </form >
+                        </div >
                         <div className="px-6 py-4 border-t border-slate-100 bg-white flex justify-end gap-2 shrink-0">
                             <CustomButton variant="secondary" onClick={handleCloseEdit} size="sm" className="h-8 px-4 font-semibold text-xs border-slate-200 bg-white text-slate-600 hover:bg-slate-50">Batal</CustomButton>
                             <CustomButton type="submit" form="edit-customer-form" variant="primary" size="sm" className="h-8 px-4 font-bold text-xs shadow-sm" disabled={loading}>
                                 <Save size={14} className="mr-2" /> Simpan Perubahan
                             </CustomButton>
                         </div>
-                    </div>
-                </div>,
+                    </div >
+                </div >,
                 document.body
             )}
 

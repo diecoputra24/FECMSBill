@@ -1,33 +1,11 @@
 import { create } from 'zustand';
 import api from '@/lib/api';
 
-export interface CustomerChangeRequest {
+export interface DiscountRequest {
     id: number;
     customerId: number;
-
-    // Current values
-    currentNama: string;
-    currentAlamat: string;
-    currentTelepon: string;
-    currentIdentitas: string;
-    currentAreaId: number;
-    currentOdpId?: number;
-    currentOdpPortId?: number;
-    currentLatitude?: number;
-    currentLongitude?: number;
-
-    // New values
-    newNama: string;
-    newAlamat: string;
-    newTelepon: string;
-    newIdentitas: string;
-    newAreaId: number;
-    newOdpId?: number;
-    newOdpPortId?: number;
-    newLatitude?: number;
-    newLongitude?: number;
-
-    // Workflow
+    currentDiscount: number;
+    newDiscount: number;
     status: 'PENDING' | 'APPROVED' | 'REJECTED';
     requestNote?: string;
     approvalNote?: string;
@@ -37,29 +15,10 @@ export interface CustomerChangeRequest {
     updatedAt: string;
 }
 
-export interface CreateCustomerChangeRequestData {
+export interface CreateDiscountRequestData {
     customerId: number;
-
-    currentNama: string;
-    currentAlamat: string;
-    currentTelepon: string;
-    currentIdentitas: string;
-    currentAreaId: number;
-    currentOdpId?: number;
-    currentOdpPortId?: number;
-    currentLatitude?: number;
-    currentLongitude?: number;
-
-    newNama: string;
-    newAlamat: string;
-    newTelepon: string;
-    newIdentitas: string;
-    newAreaId: number;
-    newOdpId?: number;
-    newOdpPortId?: number;
-    newLatitude?: number;
-    newLongitude?: number;
-
+    currentDiscount: number;
+    newDiscount: number;
     requestNote?: string;
     requestedBy?: string;
 }
@@ -71,17 +30,15 @@ interface FilterValues {
     status: string;
 }
 
-interface CustomerChangeRequestState {
-    requests: CustomerChangeRequest[];
+interface DiscountRequestState {
+    requests: DiscountRequest[];
     loading: boolean;
     error: string | null;
 
-    // List states (Approval)
     filterValues: FilterValues;
     appliedFilters: FilterValues;
     pagination: { currentPage: number; pageSize: number };
 
-    // History states (List Approval History)
     historyFilterValues: FilterValues;
     appliedHistoryFilters: FilterValues;
     historyPagination: { currentPage: number; pageSize: number };
@@ -90,17 +47,14 @@ interface CustomerChangeRequestState {
 
     fetchRequests: (force?: boolean) => Promise<void>;
     fetchPendingRequests: () => Promise<void>;
-    createRequest: (data: CreateCustomerChangeRequestData) => Promise<void>;
-    approveRequest: (id: number, approvalNote?: string, approvedBy?: string) => Promise<void>;
-    rejectRequest: (id: number, approvalNote?: string, approvedBy?: string) => Promise<void>;
-    deleteRequest: (id: number) => Promise<void>;
+    createRequest: (data: CreateDiscountRequestData) => Promise<void>;
+    approveRequest: (id: number, approvalNote?: string) => Promise<void>;
+    rejectRequest: (id: number, approvalNote?: string) => Promise<void>;
 
-    // List actions
     setFilterValues: (values: Partial<FilterValues>) => void;
     setAppliedFilters: (values: FilterValues) => void;
     setPagination: (values: Partial<{ currentPage: number; pageSize: number }>) => void;
 
-    // History actions
     setHistoryFilterValues: (values: Partial<FilterValues>) => void;
     setAppliedHistoryFilters: (values: FilterValues) => void;
     setHistoryPagination: (values: Partial<{ currentPage: number; pageSize: number }>) => void;
@@ -124,7 +78,7 @@ const initialHistoryFilters: FilterValues = {
     status: "all"
 };
 
-export const useCustomerChangeRequestStore = create<CustomerChangeRequestState>((set, get) => ({
+export const useDiscountRequestStore = create<DiscountRequestState>((set, get) => ({
     requests: [],
     loading: false,
     error: null,
@@ -172,7 +126,7 @@ export const useCustomerChangeRequestStore = create<CustomerChangeRequestState>(
         if (!force && get().requests.length > 0) return;
         set({ loading: true, error: null });
         try {
-            const res = await api.get('/customer-change-request');
+            const res = await api.get('/discount-requests');
             set({ requests: res.data, loading: false });
         } catch (error: any) {
             set({ error: error.message, loading: false });
@@ -182,7 +136,7 @@ export const useCustomerChangeRequestStore = create<CustomerChangeRequestState>(
     fetchPendingRequests: async () => {
         set({ loading: true, error: null });
         try {
-            const res = await api.get('/customer-change-request/pending');
+            const res = await api.get('/discount-requests/pending');
             set({ requests: res.data, loading: false });
         } catch (error: any) {
             set({ error: error.message, loading: false });
@@ -192,7 +146,7 @@ export const useCustomerChangeRequestStore = create<CustomerChangeRequestState>(
     createRequest: async (data) => {
         set({ loading: true, error: null });
         try {
-            await api.post('/customer-change-request', data);
+            await api.post('/discount-requests', data);
             await get().fetchRequests(true);
             set({ loading: false });
         } catch (error: any) {
@@ -201,10 +155,10 @@ export const useCustomerChangeRequestStore = create<CustomerChangeRequestState>(
         }
     },
 
-    approveRequest: async (id, approvalNote, approvedBy) => {
+    approveRequest: async (id, approvalNote) => {
         set({ loading: true, error: null });
         try {
-            await api.patch(`/customer-change-request/${id}/approve`, { approvalNote, approvedBy });
+            await api.patch(`/discount-requests/${id}/approve`, { approvalNote });
             await get().fetchRequests(true);
             set({ loading: false });
         } catch (error: any) {
@@ -213,10 +167,10 @@ export const useCustomerChangeRequestStore = create<CustomerChangeRequestState>(
         }
     },
 
-    rejectRequest: async (id, approvalNote, approvedBy) => {
+    rejectRequest: async (id, approvalNote) => {
         set({ loading: true, error: null });
         try {
-            await api.patch(`/customer-change-request/${id}/reject`, { approvalNote, approvedBy });
+            await api.patch(`/discount-requests/${id}/reject`, { approvalNote });
             await get().fetchRequests(true);
             set({ loading: false });
         } catch (error: any) {
@@ -225,17 +179,4 @@ export const useCustomerChangeRequestStore = create<CustomerChangeRequestState>(
         }
     },
 
-    deleteRequest: async (id) => {
-        set({ loading: true, error: null });
-        try {
-            await api.delete(`/customer-change-request/${id}`);
-            set((state) => ({
-                requests: state.requests.filter((r) => r.id !== id),
-                loading: false,
-            }));
-        } catch (error: any) {
-            set({ error: error.message, loading: false });
-            throw error;
-        }
-    },
 }));
